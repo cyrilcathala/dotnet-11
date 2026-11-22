@@ -10,6 +10,9 @@
     <Project Path="src/MissionControl.Mcp/MissionControl.Mcp.csproj" />
     <Project Path="src/MissionControl.AppHost/MissionControl.AppHost.csproj" />
   </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/MissionControl.Benchmarks/MissionControl.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Contracts.Tests/Contracts.Tests.csproj" />
     <Project Path="tests/ProbeFactory.Tests/ProbeFactory.Tests.csproj" />
