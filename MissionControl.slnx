@@ -4,10 +4,12 @@
     <Project Path="src/MissionControl.ServiceDefaults/MissionControl.ServiceDefaults.csproj" />
     <Project Path="src/ProbeFactory/ProbeFactory.csproj" />
     <Project Path="src/LaunchControl/LaunchControl.csproj" />
+    <Project Path="src/ProbeSimulator/ProbeSimulator.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Contracts.Tests/Contracts.Tests.csproj" />
     <Project Path="tests/ProbeFactory.Tests/ProbeFactory.Tests.csproj" />
     <Project Path="tests/LaunchControl.Tests/LaunchControl.Tests.csproj" />
+    <Project Path="tests/ProbeSimulator.Tests/ProbeSimulator.Tests.csproj" />
   </Folder>
 </Solution>
