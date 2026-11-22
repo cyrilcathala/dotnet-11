@@ -20,7 +20,7 @@ public class MissionToolsTests
         }
     }
 
-    private sealed class FakeFactory(FakeHandler handler) : IHttpClientFactory
+    private sealed class FakeFactory(HttpMessageHandler handler) : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new(handler, disposeHandler: false)
         {
@@ -137,5 +137,79 @@ public class MissionToolsTests
     {
         var (tools, _) = Make(HttpStatusCode.NotFound, "{}");
         Assert.Contains("Aucune télémétrie", await tools.GetTelemetry("V", ct: TestContext.Current.CancellationToken));
+    }
+
+    private sealed class ThrowingHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+            => throw new HttpRequestException("boom");
+    }
+
+    private static MissionTools Unreachable() => new(new FakeFactory(new ThrowingHandler()));
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"foo":"bar"}""")]
+    public async Task SendCommand_unexpected_200_body_is_not_an_acknowledgement(string body)
+    {
+        var (tools, _) = Make(HttpStatusCode.OK, body);
+        var answer = await tools.SendCommand("V", "self-destruct", null, ct: TestContext.Current.CancellationToken);
+        Assert.Contains("Réponse inattendue du contrôle de mission", answer);
+        Assert.DoesNotContain("acquittée", answer);
+    }
+
+    [Fact]
+    public async Task SendCommand_null_reason_is_handled()
+    {
+        var (tools, _) = Make(HttpStatusCode.OK, """{"commandId":"c","reason":null}""");
+        Assert.Contains("raison non précisée", await tools.SendCommand("V", "thrust", 1, ct: TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData("thrust")]
+    [InlineData("rotate")]
+    public async Task SendCommand_requires_a_value_for_thrust_and_rotate(string type)
+    {
+        var (tools, handler) = Make(HttpStatusCode.OK, "{}");
+        Assert.Contains("valeur requise", await tools.SendCommand("V", type, null, ct: TestContext.Current.CancellationToken));
+        Assert.Null(handler.SentUri);
+    }
+
+    [Fact]
+    public async Task SendCommand_500_returns_a_french_sentence()
+    {
+        var (tools, _) = Make(HttpStatusCode.InternalServerError, "");
+        Assert.Contains("Réponse inattendue", await tools.SendCommand("V", "thrust", 1, ct: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task LaunchProbe_500_returns_a_french_sentence()
+    {
+        var (tools, _) = Make(HttpStatusCode.InternalServerError, "");
+        Assert.Contains("Réponse inattendue", await tools.LaunchProbe("V", ct: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetTelemetry_503_returns_a_french_sentence()
+    {
+        var (tools, _) = Make(HttpStatusCode.ServiceUnavailable, "");
+        Assert.Contains("Réponse inattendue", await tools.GetTelemetry("V", ct: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetTelemetry_missing_field_returns_a_french_sentence()
+    {
+        var (tools, _) = Make(HttpStatusCode.OK, """{"packetId":1}""");
+        Assert.Contains("Réponse inattendue", await tools.GetTelemetry("V", ct: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Unreachable_services_return_french_sentences()
+    {
+        var tools = Unreachable();
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Contains("injoignable", await tools.LaunchProbe("V", ct: ct));
+        Assert.Contains("injoignable", await tools.SendCommand("V", "thrust", 1, ct: ct));
+        Assert.Contains("injoignable", await tools.GetTelemetry("V", ct: ct));
     }
 }

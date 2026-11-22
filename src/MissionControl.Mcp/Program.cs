@@ -16,5 +16,3 @@ app.MapDefaultEndpoints();
 app.MapMcp();
 
 app.Run();
-
-public partial class Program;
