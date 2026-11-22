@@ -17,5 +17,6 @@
     <Project Path="tests/TelemetryReceiver.Tests/TelemetryReceiver.Tests.csproj" />
     <Project Path="tests/MissionControl.Api.Tests/MissionControl.Api.Tests.csproj" />
     <Project Path="tests/Mcp.Tests/Mcp.Tests.csproj" />
+    <Project Path="tests/Tools.Tests/Tools.Tests.csproj" />
   </Folder>
 </Solution>
