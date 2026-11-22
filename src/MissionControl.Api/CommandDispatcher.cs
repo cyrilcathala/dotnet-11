@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using MissionControl.Contracts;
 
@@ -20,23 +21,29 @@ public sealed class CommandDispatcher(IHttpClientFactory clients, IOptions<Comma
         SimulatorCommandOutcome? outcome;
         try
         {
-            var response = await clients.CreateClient("probesimulator").PostAsJsonAsync(
+            using var response = await clients.CreateClient("probesimulator").PostAsJsonAsync(
                 $"/flights/{Uri.EscapeDataString(cmd.ProbeName)}/commands", ToRequest(cmd), cts.Token);
             if (response.StatusCode == HttpStatusCode.NotFound)
                 return new Rejected(cmd.Id, "Sonde inconnue ou au sol");
             response.EnsureSuccessStatusCode();
             outcome = await response.Content.ReadFromJsonAsync<SimulatorCommandOutcome>(cts.Token);
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (cts.IsCancellationRequested && !ct.IsCancellationRequested)
         {
             return new TimedOut(cmd.Id, timeout);
+        }
+        catch (Exception e) when (e is HttpRequestException or JsonException)
+        {
+            return new Rejected(cmd.Id, "Simulateur indisponible");
         }
 
         return outcome?.Outcome switch
         {
             "ack" => new Acknowledged(cmd.Id, time.GetUtcNow()),
+            "rejected" => new Rejected(cmd.Id, outcome.Reason ?? "Rejetée par la sonde"),
             "lost" => new ProbeLost(cmd.Id, cmd.ProbeName),
-            _ => new Rejected(cmd.Id, outcome?.Reason ?? "Rejetée par la sonde"),
+            // Chaîne libre venue du réseau, pas un type fermé : ce repli est obligatoire ici.
+            _ => new Rejected(cmd.Id, "Réponse inconnue du simulateur"),
         };
     }
 

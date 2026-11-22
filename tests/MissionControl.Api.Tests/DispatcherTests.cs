@@ -62,6 +62,28 @@ public sealed class DispatcherTests
     }
 
     [Fact]
+    public async Task Simulator_5xx_yields_Rejected_not_500()
+    {
+        var simulator = new FakeSimulatorHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+        var id = Guid.NewGuid();
+
+        var result = await Create(simulator).DispatchAsync(new Thrust(id, "Pioneer-11", 1), TestContext.Current.CancellationToken);
+
+        Assert.Equal(new Rejected(id, "Simulateur indisponible"), Assert.IsType<Rejected>(result.Value));
+    }
+
+    [Fact]
+    public async Task Unreachable_simulator_yields_Rejected_not_500()
+    {
+        var simulator = new FakeSimulatorHandler((_, _) => throw new HttpRequestException("Connexion refusée"));
+        var id = Guid.NewGuid();
+
+        var result = await Create(simulator).DispatchAsync(new Thrust(id, "Pioneer-11", 1), TestContext.Current.CancellationToken);
+
+        Assert.Equal(new Rejected(id, "Simulateur indisponible"), Assert.IsType<Rejected>(result.Value));
+    }
+
+    [Fact]
     public async Task Slow_simulator_yields_TimedOut()
     {
         var timeout = TimeSpan.FromMilliseconds(100);
