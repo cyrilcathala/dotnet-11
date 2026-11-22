@@ -7,17 +7,31 @@
 
 <Panel Title="Chaîne de transmission" Class="mt" Flush>
     <div class="pipeline">
-        @foreach (var (stage, i) in Stages.Select((s, i) => (s, i)))
+        @foreach (var (group, g) in Groups.Select((x, i) => (x, i)))
         {
-            <div class="pipe-stage">
-                <span class="label">@stage.Where</span>
-                <span class="pipe-title">@stage.What</span>
-                <span class="pipe-api">@stage.Api</span>
-            </div>
-            @if (i < Stages.Length - 1)
+            @if (g > 0)
             {
-                <div class="pipe-link" aria-hidden="true"></div>
+                <div class="pipe-link pipe-link-outer" aria-hidden="true"></div>
             }
+            <section class="pipe-group @(group.Component ? "" : "pipe-wire")" style="flex: @group.Stages.Length">
+                <header class="pipe-group-head">
+                    <span class="label label-strong">@group.Name</span>
+                    <span class="label">@group.Kind</span>
+                </header>
+                <div class="pipe-stages">
+                    @foreach (var (stage, i) in group.Stages.Select((x, i) => (x, i)))
+                    {
+                        @if (i > 0)
+                        {
+                            <div class="pipe-link" aria-hidden="true"></div>
+                        }
+                        <div class="pipe-stage">
+                            <span class="pipe-title">@stage.What</span>
+                            <span class="pipe-api">@stage.Api</span>
+                        </div>
+                    }
+                </div>
+            </section>
         }
     </div>
 </Panel>
@@ -96,16 +110,26 @@
 @code {
     private static readonly MissionStep Step = Mission.ByNumber(3);
 
-    private record Stage(string Where, string What, string Api);
+    private record Stage(string What, string Api);
+    private record Group(string Name, string Kind, bool Component, Stage[] Stages);
     private record Bench(string Name, double Time, int Size, bool Hero);
 
-    private static readonly Stage[] Stages =
+    private static readonly Group[] Groups =
     [
-        new("ProbeSimulator", "Trame toutes les 500 ms", "IAsyncEnumerable<TelemetryFrame>"),
-        new("ProbeSimulator", "Encodage CBOR", "CborWriter"),
-        new("Réseau", "Compression Zstandard", "ZstandardStream"),
-        new("TelemetryReceiver", "Décodage incrémental", "CborReader · SlideData"),
-        new("TelemetryReceiver", "Dédoublonnage", "EqualityComparer<T>.Create"),
+        new("ProbeSimulator", "Composant", true,
+        [
+            new("Trame toutes les 500 ms", "IAsyncEnumerable<TelemetryFrame>"),
+            new("Encodage CBOR", "CborWriter"),
+        ]),
+        new("Réseau", "HTTP POST", false,
+        [
+            new("Compression Zstandard", "ZstandardStream"),
+        ]),
+        new("TelemetryReceiver", "Composant", true,
+        [
+            new("Décodage incrémental", "CborReader · SlideData"),
+            new("Dédoublonnage", "EqualityComparer<T>.Create"),
+        ]),
     ];
 
     // Mesures reproduites de docs/demo-runbook.md (.NET 11.0.0, Ryzen 7 5800X).

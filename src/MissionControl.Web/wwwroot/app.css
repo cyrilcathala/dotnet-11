@@ -660,19 +660,41 @@ code, pre, .mono { font-family: var(--mono); }
 
 /* ---------- Chaîne de transmission ---------- */
 
-.pipeline { display: flex; align-items: stretch; }
-.pipe-stage { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 18px; min-width: 0; }
-.pipe-title { font-size: 15px; font-weight: 600; }
-.pipe-api { font: 12px var(--mono); color: var(--cyan); }
-.pipe-link {
-    width: 36px;
-    flex: none;
-    background:
-        linear-gradient(90deg, var(--cyan) 50%, transparent 50%) 0 50% / 8px 1px repeat-x;
+/* Une ligne de fil = hauteur de l'en-tête de cadre + centre du titre d'étape. */
+.pipeline { --head: 34px; --wire: 25px; display: flex; align-items: stretch; padding: 18px; }
+.pipe-group { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--bg-inset); }
+.pipe-group.pipe-wire { border: 1px dashed var(--line); background: none; }
+.pipe-group-head { height: var(--head); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; }
+.pipe-wire .pipe-group-head { border-bottom-style: dashed; }
+.pipe-stages { display: flex; flex: 1; }
+.pipe-stage { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 16px 14px; min-width: 0; }
+.pipe-title { font-size: 15px; line-height: 18px; font-weight: 600; }
+.pipe-api { font: 12px var(--mono); color: var(--cyan); overflow-wrap: anywhere; }
+.pipe-link { position: relative; width: 28px; flex: none; }
+.pipe-link-outer { width: 40px; }
+.pipe-link::before, .pipe-link::after { content: ""; position: absolute; top: var(--wire); }
+.pipe-link-outer::before, .pipe-link-outer::after { top: calc(var(--head) + var(--wire)); }
+.pipe-link::before {
+    left: 0; right: 5px; height: 1px;
+    background: linear-gradient(90deg, var(--cyan) 50%, transparent 50%) 0 0 / 8px 1px repeat-x;
     animation: pipe 0.8s linear infinite;
-    opacity: .7;
 }
-@keyframes pipe { to { background-position: 8px 50%; } }
+.pipe-link::after {
+    right: 0; margin-top: -4px;
+    border-left: 6px solid var(--cyan); border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent;
+}
+@keyframes pipe { to { background-position: 8px 0; } }
+
+@media (max-width: 1200px) {
+    .pipeline, .pipe-stages { flex-direction: column; }
+    .pipe-group { flex: none !important; }
+    .pipe-link, .pipe-link-outer { width: auto; height: 26px; }
+    .pipe-link::before, .pipe-link::after, .pipe-link-outer::before, .pipe-link-outer::after { top: auto; left: 32px; }
+    .pipe-link::before { top: 0; bottom: 5px; right: auto; width: 1px; height: auto;
+        background: linear-gradient(180deg, var(--cyan) 50%, transparent 50%) 0 0 / 1px 8px repeat-y; animation-name: pipe-v; }
+    .pipe-link::after { bottom: 0; right: auto; margin: 0 0 0 -4px; border-top: 6px solid var(--cyan); border-left: 4.5px solid transparent; border-right: 4.5px solid transparent; border-bottom: 0; }
+}
+@keyframes pipe-v { to { background-position: 0 8px; } }
 
 /* ---------- Cas de l'union ---------- */
 
