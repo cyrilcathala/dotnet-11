@@ -28,11 +28,4 @@ public sealed class InMemoryFlightRecorder : IFlightRecorder
         lock (recording)
             return recording.ToArray();
     }
-
-    // .NET 10 : on copie le tampon dans un nouveau tableau pour construire le flux.
-    public Stream OpenRead(string probe)
-    {
-        var buffer = Snapshot(probe);
-        return new MemoryStream(buffer.ToArray());
-    }
 }

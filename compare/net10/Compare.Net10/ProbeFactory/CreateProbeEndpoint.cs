@@ -18,16 +18,13 @@ public sealed record CreateProbeRequest(
 
 public static class CreateProbeEndpoint
 {
+    // .NET 10 : AddValidation() valide déjà les attributs synchrones des minimal APIs, avant l'endpoint.
+    public static IServiceCollection AddCreateProbe(this IServiceCollection services) => services.AddValidation();
+
     public static IEndpointRouteBuilder MapCreateProbe(this IEndpointRouteBuilder app)
     {
         app.MapPost("/probes", async (CreateProbeRequest request, IProbeRegistry registry, CancellationToken ct) =>
         {
-            var errors = new List<ValidationResult>();
-            if (!Validator.TryValidateObject(request, new ValidationContext(request), errors, validateAllProperties: true))
-                return Results.ValidationProblem(errors
-                    .GroupBy(e => e.MemberNames.FirstOrDefault() ?? "")
-                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage ?? "").ToArray()));
-
             // Vérification d'unicité manuelle : la validation par attributs ne sait pas être asynchrone.
             if (await registry.IsTakenAsync(request.Name, ct))
                 return Results.ValidationProblem(new Dictionary<string, string[]>
