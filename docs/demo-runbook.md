@@ -39,7 +39,7 @@ Script du présentateur. Ordre : étapes 0 à 7 de la spec (`docs/superpowers/sp
 
 - **Requêtes** : `docs/demo.http` 3.1 (dernière trame) et 3.2 (compteurs). `duplicates` passe à 1 au bout de quelques secondes (la 5e trame est retransmise).
 - **Ouvrir en split** : `compare/net10/Compare.Net10/ProbeSimulator/TelemetryContent.cs` | `src/ProbeSimulator/TelemetryContent.cs` (Zstd à la place de GZip/Brotli) ; `compare/net10/Compare.Net10/TelemetryReceiver/BufferedTelemetryDecoder.cs` | `src/TelemetryReceiver/IncrementalTelemetryDecoder.cs` ; `compare/net10/Compare.Net10/TelemetryReceiver/PacketIdComparer.cs` | `src/TelemetryReceiver/TelemetryStore.cs` (`EqualityComparer<T>.Create`) ; `compare/net10/Compare.Net10/TelemetryReceiver/IngestEndpoint.cs` | `src/TelemetryReceiver/Program.cs` (boîte noire : `new MemoryStream(buffer.ToArray())` contre `new ReadOnlySequenceStream(buffer)`, sans copie du tampon du pipe).
-- **Talking point CBOR** : `System.Formats.Cbor` est dans le framework partagé de .NET 10 mais devient un package NuGet sur .NET 11 (`11.0.0`). `CborReaderOptions` est nouveau en .NET 11 : `AllowMultipleRootLevelValues = true` est nécessaire pour une suite de trames, et `SlideData(chunk, isFinalBlock)` permet la lecture incrémentale.
+- **Talking point CBOR** : `System.Formats.Cbor` est inclus dans le framework partagé ASP.NET Core (10 et 11) ; une bibliothèque `Microsoft.NET.Sdk` comme Contracts référence le package NuGet (`11.0.0`). `CborReaderOptions` est nouveau en .NET 11 : `AllowMultipleRootLevelValues = true` est nécessaire pour une suite de trames, et `SlideData(chunk, isFinalBlock)` permet la lecture incrémentale.
 - **Benchmarks** : voir la section « Benchmarks » ci-dessous et ses réserves. Relancer : `dotnet run -c Release --project benchmarks/MissionControl.Benchmarks -- --filter * --job short` (plusieurs minutes : pas en direct).
 - **Public** : une trame JSON avec `packetId`, `altitudeKm`, `batteryPercent` ; `received` qui monte.
 - **Plan B** : captures des tableaux BenchmarkDotNet (reproduits plus bas).
@@ -53,9 +53,9 @@ Script du présentateur. Ordre : étapes 0 à 7 de la spec (`docs/superpowers/sp
 
 ## Étape 5 : MissionControl
 
-- **Requêtes** : `docs/demo.http` 5.1 (Acknowledged), 5.2 (Rejected), 5.3, 5.4 (historique JSONL), 5.5 (OpenAPI en `anyOf`). Suivi en continu : `curl -N <missioncontrol>/commands/history`.
+- **Requêtes** : `docs/demo.http` 5.1 (Acknowledged), 5.2 (Rejected), 5.3, 5.4 (historique JSONL), 5.5 (OpenAPI en `anyOf`). En terminal : `curl -N <missioncontrol>/commands/history` (un objet JSON par ligne, réponse en flux ; l'historique courant, puis la réponse se termine).
 - **Ouvrir en split** : `compare/net10/Compare.Net10/MissionControl/ProbeCommand.cs` | `src/MissionControl.Api/ProbeCommand.cs` (`abstract record` + `default: throw` contre `closed record`) ; `compare/net10/Compare.Net10/MissionControl/CommandResult.cs` | `src/MissionControl.Api/CommandResult.cs` (hiérarchie contre `union`) ; `compare/net10/Compare.Net10/MissionControl/CommandHistoryEndpoint.cs` | `src/MissionControl.Api/Program.cs` (`SerializeAsyncEnumerable(..., topLevelValues: true)`).
-- **Démo du `closed`** : ajouter `public record Refuel(...) : ProbeCommand(...)` et montrer l'avertissement CS8509 sur le `switch` de `CommandDispatcher.ToRequest`. Annuler ensuite.
+- **Démo du `closed`** : coller à la fin de `src/MissionControl.Api/ProbeCommand.cs` la ligne `public record Refuel(Guid Id, string ProbeName, double Liters) : ProbeCommand(Id, ProbeName);`. Attendu : avertissement CS8509 (switch non exhaustif) sur le `switch` de `CommandDispatcher.ToRequest`. Annuler ensuite : `git checkout -- src/MissionControl.Api/ProbeCommand.cs`.
 - **OpenTelemetry natif** : dans le dashboard, ouvrir les Traces : la commande traverse `missioncontrol` puis `probesimulator`, sans `OpenTelemetry.Instrumentation.AspNetCore` côté .NET 11 (le `.csproj` de `compare/net10` l'a).
 - **Public** : réponses `Acknowledged` / `Rejected` sans discriminant (l'union sérialise le cas directement) ; un objet JSON par ligne.
 - **Plan B** : capture de la trace distribuée.

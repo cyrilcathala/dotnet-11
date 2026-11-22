@@ -108,7 +108,7 @@ Content-Type: application/json
 
 { "type": "rotate", "id": "{{commandId}}", "probeName": "{{probe}}", "degrees": 90 }
 
-### 5.4 Historique en JSONL (application/jsonl, un objet par ligne). Suivi continu : curl -N <url>/commands/history
+### 5.4 Historique en JSONL (application/jsonl) : un objet JSON par ligne, réponse en flux. En terminal : curl -N <url>/commands/history
 GET {{missioncontrol}}/commands/history
 
 ### 5.5 OpenAPI : le résultat de commande est décrit en anyOf
