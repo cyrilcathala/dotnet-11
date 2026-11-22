@@ -74,7 +74,7 @@ else if (_phase == Phase.Polling)
 
 <section class="panel framed mt">
     <header class="panel-head">
-        <span class="label label-strong">Pile live du compte à rebours · même source, deux compilations</span>
+        <span class="label label-strong">Stack trace + runtime async</span>
         <span class="spacer"></span>
         <span class="label">GET /diagnostics/countdown-stack?runtimeAsync=…</span>
         <button class="btn btn-sm btn-primary" disabled="@_stackBusy" @onclick="CaptureAsync">2.3 · Capturer les deux</button>
@@ -130,15 +130,8 @@ else if (_phase == Phase.Polling)
                     <span> · @(((a - b) * 100.0 / a).ToString("0"))&nbsp;% de pile en moins</span>
                     <br />
                 }
-                <span class="legend-old"></span> frames de machinerie async (MoveNext, builders, ExecutionContext)
+                <span class="legend-old"></span> frames de plomberie async (MoveNext, builders, ExecutionContext)
             </div>
-        </div>
-        <div class="caveat mt">
-            <strong>Même fichier, même processus, même .NET 11.</strong>
-            <code class="inline-code">CountdownSequence.cs</code> est compilé deux fois : dans LaunchControl (runtime async) et dans
-            LaunchControl.ClassicAsync (sans), chargé sous l'alias <code class="inline-code">classicasync</code>.
-            Seules les piles live changent (débogueur, profileur, <code class="inline-code">StackTrace</code>) ;
-            les stack traces d'exception étaient déjà propres.
         </div>
     </div>
 </section>

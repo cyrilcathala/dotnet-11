@@ -121,12 +121,10 @@
 
     private static readonly CodePair[] Code =
     [
-        new("Requête et attributs", "compare/net10/Compare.Net10/ProbeFactory/CreateProbeEndpoint.cs", "src/ProbeFactory/CreateProbeRequest.cs",
-            ["ErrorMessageResourceType", "IsTakenAsync", "ValidationProblem"], ["UniqueProbeName", "StringLength"]),
-        new("Unicité asynchrone", "compare/net10/Compare.Net10/ProbeFactory/CreateProbeEndpoint.cs", "src/ProbeFactory/UniqueProbeNameAttribute.cs",
-            ["IsTakenAsync", "ValidationProblem"], ["AsyncValidationAttribute", "IsValidAsync"]),
-        new("Localisation", null, "src/ProbeFactory/Program.cs",
-            AfterMarks: ["AddLocalization", "AddValidation", "LocalizerProvider", "UseRequestLocalization"]),
+        new("Requête, unicité et localisation", "compare/net10/Compare.Net10/ProbeFactory/CreateProbeEndpoint.cs", "src/ProbeFactory/CreateProbeEndpoint.cs",
+            ["ErrorMessageResourceType", "IsTakenAsync", "ValidationProblem"], ["UniqueProbeName", "AsyncValidationAttribute", "IsValidAsync", "LocalizerProvider"]),
+        new("Culture de la requête", null, "src/ProbeFactory/Program.cs",
+            AfterMarks: ["AddCreateProbe", "UseRequestLocalization"]),
         new("Collection expressions", "compare/net10/Compare.Net10/ProbeFactory/ProbeRegistry.cs", "src/ProbeFactory/ProbeRegistry.cs",
             ["_reserved ="], ["with(StringComparer"]),
     ];

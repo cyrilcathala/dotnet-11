@@ -2,8 +2,6 @@ using System.Diagnostics;
 
 namespace LaunchControl;
 
-// Chaîne d'appels async : le Task.Yield() libère le thread, donc la reprise part de la file du pool.
-// Seuls les appels synchrones qui suivent la dernière reprise figurent sur la pile live.
 public sealed class CountdownSequence
 {
     public async Task<string> CaptureStackAsync(CancellationToken ct)

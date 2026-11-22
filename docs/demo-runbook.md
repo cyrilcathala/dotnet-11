@@ -27,7 +27,7 @@ La ressource `console` de l'AppHost (`src/MissionControl.Web`) sert http://local
 ## Étape 1 : ProbeFactory
 
 - **Requêtes** : `docs/demo.http` 1.1 à 1.5. Créer `Pioneer-12`, puis un nom trop court en `Accept-Language: fr` puis `en`, puis le doublon, puis `voyager`.
-- **Ouvrir en split** : `compare/net10/Compare.Net10/ProbeFactory/CreateProbeEndpoint.cs` | `src/ProbeFactory/CreateProbeRequest.cs` et `src/ProbeFactory/UniqueProbeNameAttribute.cs`. Puis `compare/net10/Compare.Net10/ProbeFactory/ProbeRegistry.cs` | `src/ProbeFactory/ProbeRegistry.cs` pour `[with(StringComparer.OrdinalIgnoreCase), "Voyager", "Apollo"]`.
+- **Ouvrir en split** : `compare/net10/Compare.Net10/ProbeFactory/CreateProbeEndpoint.cs` | `src/ProbeFactory/CreateProbeEndpoint.cs`. Puis `compare/net10/Compare.Net10/ProbeFactory/ProbeRegistry.cs` | `src/ProbeFactory/ProbeRegistry.cs` pour `[with(StringComparer.OrdinalIgnoreCase), "Voyager", "Apollo"]`.
 - **Public** : 400 avec « Le champ Name doit contenir entre 3 et 32 caractères. » (fr) puis « The Name field must be between 3 and 32 characters. » (en) ; « Ce nom de sonde est déjà pris. » pour le doublon (vérification asynchrone, avant l'endpoint). Côté .NET 10 : `AddValidation()` valide déjà les attributs synchrones, mais les messages passent par `ErrorMessageResourceType` sur chaque attribut et l'unicité est vérifiée à la main dans l'endpoint (pas de validation asynchrone). Les messages viennent de `src/ProbeFactory/Resources/ValidationMessages*.resx`.
 - **Plan B** : coller les réponses JSON d'une répétition dans une slide.
 
