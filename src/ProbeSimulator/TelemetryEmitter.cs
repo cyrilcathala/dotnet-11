@@ -23,7 +23,7 @@ public sealed class TelemetryEmitter(
         {
             try
             {
-                var content = new TelemetryContent(FlightTelemetry.Generate(flight.Probe, time, ct));
+                var content = new TelemetryContent(FlightTelemetry.Generate(flight, time, ct));
                 using var response = await clients.CreateClient("telemetryreceiver")
                     .PostAsync($"/telemetry/{Uri.EscapeDataString(flight.Probe)}", content, ct);
                 response.EnsureSuccessStatusCode();

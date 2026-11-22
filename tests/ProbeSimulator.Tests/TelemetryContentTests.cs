@@ -14,7 +14,7 @@ public sealed class TelemetryContentTests
         var time = new FakeTimeProvider();
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(30));
-        var frames = FlightTelemetry.Generate("Voyager-X", time, cts.Token).Take(7);
+        var frames = FlightTelemetry.Generate(new Flight("Voyager-X"), time, cts.Token).Take(7);
         var content = new TelemetryContent(frames);
 
         var ticker = Task.Run(async () =>

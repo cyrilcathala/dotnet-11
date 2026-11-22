@@ -68,7 +68,7 @@ Script du présentateur. Ordre : étapes 0 à 7 de la spec (`docs/superpowers/sp
 
 ## Étape 7 : final, serveur MCP
 
-- **Faire** : brancher un client MCP (n'importe lequel) sur `http://localhost:6277/` (transport HTTP, sans état). Outils exposés : `launch_probe`, `send_command`, `get_telemetry`. Demander à l'agent de lancer une sonde déjà construite et d'envoyer une commande.
+- **Faire** : brancher un client MCP (n'importe lequel) sur `http://localhost:6277/` (transport HTTP, sans état). Outils exposés : `launch_probe`, `send_command`, `get_telemetry`. Avant, créer une sonde neuve `Pioneer-13` : `docs/demo.http` 1.1 après avoir remplacé `@probe = Pioneer-12` par `@probe = Pioneer-13` (`Pioneer-12` est perdue depuis l'étape 6). Demander ensuite à l'agent de lancer `Pioneer-13`, d'envoyer une commande et de lire sa télémétrie.
 - **Ouvrir** : `src/MissionControl.Mcp/Program.cs` et `src/MissionControl.Mcp/Tools/MissionTools.cs` (template `dotnet new mcpserver` du SDK).
 - **Public** : l'agent appelle les outils, les traces apparaissent dans le dashboard.
 - **Plan B** : `docs/demo.http` 7.1 à 7.3 (initialize, tools/list, tools/call) ; capture d'une session d'agent.
