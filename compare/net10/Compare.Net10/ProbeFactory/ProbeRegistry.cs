@@ -18,7 +18,7 @@ public sealed class InMemoryProbeRegistry : IProbeRegistry
 
     public async ValueTask<bool> IsTakenAsync(string name, CancellationToken ct)
     {
-        await Task.Delay(TimeSpan.FromMilliseconds(300), ct); // simulated remote registry
+        await Task.Delay(TimeSpan.FromMilliseconds(300), ct); // registre distant simulé
         return _reserved.Contains(name) || _probes.ContainsKey(name);
     }
 

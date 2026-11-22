@@ -12,13 +12,13 @@ public interface IProbeRegistry
 
 public sealed class InMemoryProbeRegistry : IProbeRegistry
 {
-    // C# 15 collection expression arguments: the comparer is passed to the HashSet constructor.
+    // C# 15, arguments d'expression de collection : le comparateur est passé au constructeur du HashSet.
     private readonly HashSet<string> _reserved = [with(StringComparer.OrdinalIgnoreCase), "Voyager", "Apollo"];
     private readonly ConcurrentDictionary<string, ProbeDto> _probes = new(StringComparer.OrdinalIgnoreCase);
 
     public async ValueTask<bool> IsTakenAsync(string name, CancellationToken ct)
     {
-        await Task.Delay(TimeSpan.FromMilliseconds(300), ct); // simulated remote registry
+        await Task.Delay(TimeSpan.FromMilliseconds(300), ct); // registre distant simulé
         return _reserved.Contains(name) || _probes.ContainsKey(name);
     }
 

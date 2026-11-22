@@ -42,7 +42,7 @@ app.MapPost("/telemetry/{probe}", async (string probe, HttpContext http, Telemet
     }
     catch (Exception e) when (e is IOException or OperationCanceledException or BadHttpRequestException)
     {
-        logger.LogWarning(e, "Telemetry upload from {Probe} ended early; keeping frames decoded so far", probe);
+        logger.LogWarning(e, "Envoi de télémétrie de {Probe} interrompu ; les trames déjà décodées sont conservées", probe);
     }
     return Results.Accepted();
 });

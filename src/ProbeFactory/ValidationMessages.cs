@@ -1,4 +1,4 @@
 namespace ProbeFactory;
 
-/// <summary>Marker type: its name locates the shared Resources/ValidationMessages*.resx files.</summary>
+/// <summary>Type marqueur : son nom désigne les fichiers partagés Resources/ValidationMessages*.resx.</summary>
 public sealed class ValidationMessages;

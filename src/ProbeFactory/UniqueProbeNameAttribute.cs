@@ -2,11 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ProbeFactory;
 
-/// <summary>Async-only validation: the name must not be reserved or already registered.</summary>
+/// <summary>Validation uniquement asynchrone : le nom ne doit être ni réservé ni déjà enregistré.</summary>
 public sealed class UniqueProbeNameAttribute : AsyncValidationAttribute
 {
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
-        => throw new InvalidOperationException($"{nameof(UniqueProbeNameAttribute)} is async-only.");
+        => throw new InvalidOperationException($"{nameof(UniqueProbeNameAttribute)} ne se valide qu'en asynchrone.");
 
     protected override async Task<ValidationResult?> IsValidAsync(
         object? value, ValidationContext validationContext, CancellationToken cancellationToken)
