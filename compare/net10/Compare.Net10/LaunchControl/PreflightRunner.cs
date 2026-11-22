@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 namespace LaunchControl;
 
@@ -22,6 +23,7 @@ public sealed class PreflightRunner(IConfiguration configuration, IHostEnvironme
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
             UseShellExecute = false,
         };
         psi.ArgumentList.Add("run");

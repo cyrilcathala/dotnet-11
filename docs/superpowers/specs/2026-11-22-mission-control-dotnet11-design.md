@@ -102,8 +102,13 @@ builder.AddExecutable("asteroid-scan", "dotnet", toolsDirectory, "run", "--file"
 Avant chaque lancement, LaunchControl exécute un outil de vérification météo du pas de tir.
 
 ```csharp
-var result = await Process.RunAndCaptureTextAsync("dotnet",
-    ["run", "preflight.cs", "-e", "LAUNCH_SITE=Kourou", "-e", $"PROBE={probe.Name}"]);
+var psi = new ProcessStartInfo("dotnet",
+    ["run", "-e", "LAUNCH_SITE=Kourou", "-e", $"PROBE={probe.Name}", "--file", "preflight.cs"])
+{
+    RedirectStandardOutput = true, RedirectStandardError = true,       // requis par la surcharge psi
+    StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8, // l'outil écrit en UTF-8
+};
+var result = await Process.RunAndCaptureTextAsync(psi, ct);
 
 return result.ExitStatus.ExitCode == 0 ? Go(result.StandardOutput) : NoGo(result.StandardOutput);
 ```
@@ -213,7 +218,7 @@ Vérifié le 2026-11-22 avec le SDK 11.0.100 (GA), sous Windows. Statut : confir
 | API de formatage de la **validation localisée** | ajusté (réflexion ; `LocalizerProvider` compilé) | `IValidationMessageFormatter` n'existe pas. Existent : `ValidationOptions.LocalizerProvider` de type `Func<Type, IStringLocalizerFactory, IStringLocalizer>` (`AddLocalization()` puis `AddValidation(o => o.LocalizerProvider = (_, f) => f.Create(typeof(X)))`, compilé) et `ValidationAttribute.FormatErrorMessage(string)` / `FormatMessage(string, string)` (publiques d'après la réflexion ; ni appelées ni compilées). |
 | **`AsyncValidationAttribute`** | ajusté (spike exécuté) | Classe de base abstraite : surcharger les deux membres protégés `ValidationResult? IsValid(object? value, ValidationContext ctx)` (obligatoire, peut lever) et `Task<ValidationResult?> IsValidAsync(object? value, ValidationContext ctx, CancellationToken ct)`. Appel direct : `GetValidationResultAsync(object, ValidationContext, CancellationToken)` (public). Compilé et exécuté. |
 | **`dotnet run -e`** | confirmé (spike exécuté) | `dotnet run -e X=1 spikes/env.cs` affiche `1` ; `dotnet run -e X=1 --file spikes/env.cs` aussi (`-e NOM=VALEUR`). |
-| **CBOR incrémental** | ajusté (spike exécuté) | `System.Formats.Cbor` n'est PAS dans le framework partagé : ajouter `#:package System.Formats.Cbor@11.0.0`. `CborReader.SlideData(ReadOnlyMemory<byte> data, bool isFinalBlock)` ; constructeur `CborReader(ReadOnlyMemory<byte>, CborReaderOptions, bool isFinalBlock)`. `CborReaderOptions` : `ConformanceMode`, `AllowMultipleRootLevelValues`, `MaxDepth`. `AllowMultipleRootLevelValues = true` est nécessaire pour une suite de trames (sinon seule la première est lue, puis état `Finished`). Boucle validée en morceaux de 7 octets : `TrySkipValue(false)` renvoie `false` tant que la trame est incomplète, `BytesRemaining` donne les octets non consommés à conserver avant `SlideData`. Les états `NeedsMoreData` et `Finished` existent. Écriture : `new CborWriter(CborConformanceMode.Lax, convertIndefiniteLengthEncodings: false, allowMultipleRootLevelValues: true)`. |
+| **CBOR incrémental** | ajusté (spike exécuté) | `System.Formats.Cbor` est inclus dans le framework partagé ASP.NET Core (`Microsoft.AspNetCore.App`, en .NET 10 comme en .NET 11), mais pas dans `Microsoft.NETCore.App` : un fichier ou une bibliothèque `Microsoft.NET.Sdk` (comme Contracts) référence le package NuGet (`#:package System.Formats.Cbor@11.0.0`). `CborReader.SlideData(ReadOnlyMemory<byte> data, bool isFinalBlock)` ; constructeur `CborReader(ReadOnlyMemory<byte>, CborReaderOptions, bool isFinalBlock)`. `CborReaderOptions` : `ConformanceMode`, `AllowMultipleRootLevelValues`, `MaxDepth`. `AllowMultipleRootLevelValues = true` est nécessaire pour une suite de trames (sinon seule la première est lue, puis état `Finished`). Boucle validée en morceaux de 7 octets : `TrySkipValue(false)` renvoie `false` tant que la trame est incomplète, `BytesRemaining` donne les octets non consommés à conserver avant `SlideData`. Les états `NeedsMoreData` et `Finished` existent. Écriture : `new CborWriter(CborConformanceMode.Lax, convertIndefiniteLengthEncodings: false, allowMultipleRootLevelValues: true)`. |
 
 ### Résultats de vérification (Task 1)
 

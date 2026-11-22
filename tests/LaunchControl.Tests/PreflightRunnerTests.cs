@@ -31,6 +31,14 @@ public sealed class PreflightRunnerTests
     }
 
     [Fact]
+    public async Task Report_keeps_accents_from_the_utf8_tool_output()
+    {
+        using var cts = new CancellationTokenSource(Timeout);
+        var r = await Runner(RealTool).RunAsync("Pioneer-11", false, cts.Token);
+        Assert.Contains("Station météo — Kourou — sonde Pioneer-11", r.Report);
+    }
+
+    [Fact]
     public async Task Forced_storm_is_no_go()
     {
         using var cts = new CancellationTokenSource(Timeout);

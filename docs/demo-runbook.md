@@ -34,7 +34,6 @@ Script du présentateur. Ordre : étapes 0 à 7 de la spec (`docs/superpowers/sp
 - **Runtime async (point d'exactitude)** : comparer **14 frames sans, 7 frames avec**, sur .NET 11, même endpoint ASP.NET (`GET /diagnostics/countdown-stack`). Basculer avec `<Features>runtime-async=on</Features>` dans `src/LaunchControl/LaunchControl.csproj` (le retirer pour la valeur « sans »). Les 13 frames de .NET 10 sont mesurés dans un `Main` console (`dotnet run --project compare/net10/Compare.Net10 -- countdown`) : ce n'est **pas comparable** à l'endpoint, donc ne jamais présenter 13 → 7. Seules les piles **live** (débogueur, profileur, `StackTrace`) changent ; les stack traces d'exception étaient déjà propres.
 - **Public** : 409 puis 200 (le suspense de l'orage), puis `"frames": 7`.
 - **Plan B** : captures de la pile à 14 frames et de celle à 7 ; captures d'un `NO-GO` puis d'un `GO`.
-- **Piège connu** : sous Windows, les accents du champ `weather` de la réponse arrivent déformés (`Station m├®t├®o`). `preflight.cs` écrit en UTF-8, mais `LaunchControl` décode la sortie avec la page de codes de la console. Ne pas s'attarder sur ce champ à l'écran ; à corriger avant la démo si possible.
 
 ## Étape 3 : en vol
 
