@@ -38,7 +38,7 @@
 
 <div class="grid grid-2 mt">
     <Panel Title="Compression · 1 000 trames CBOR" Framed>
-        <Actions><span class="label">BenchmarkDotNet · ShortRun</span></Actions>
+        <Actions><span class="label">BenchmarkDotNet · 3 lancements</span></Actions>
         <ChildContent>
             <div class="label">Temps moyen</div>
             <div class="bars mt">
@@ -46,7 +46,7 @@
                 {
                     <div class="bar-row">
                         <span class="bar-name">@b.Name</span>
-                        <span class="bar-track"><span class="bar-fill @(b.Hero ? "lead" : "")" style="width: @Pct(b.Time, 622.0)"></span></span>
+                        <span class="bar-track"><span class="bar-fill @(b.Hero ? "lead" : "")" style="width: @Pct(b.Time, 656.9)"></span></span>
                         <span class="bar-value">@b.Time.ToString("0.0") µs</span>
                     </div>
                 }
@@ -64,7 +64,7 @@
             </div>
             <div class="caveat mt">
                 <strong>Réserves.</strong> GZip et Brotli à <code class="inline-code">Optimal</code>, Zstd au niveau par défaut : niveaux non équivalents.
-                L'écart Brotli / GZip est dans le bruit (3 itérations).
+                Brotli n'est que 4 % plus rapide que GZip : mesurable, mais faible.
             </div>
         </ChildContent>
     </Panel>
@@ -76,12 +76,12 @@
                 <div>
                     <div class="label">new MemoryStream(buffer.ToArray())</div>
                     <div class="verdict-word count" style="font-size: 54px; margin-top: 10px">65 624 o</div>
-                    <div class="note">alloués · 2,820 µs</div>
+                    <div class="note">alloués · 3,104 µs</div>
                 </div>
                 <div>
                     <div class="label label-strong">new ReadOnlySequenceStream(buffer)</div>
                     <div class="verdict-word go" style="font-size: 54px; margin-top: 10px">80 o</div>
-                    <div class="note">alloués · 1,217 µs</div>
+                    <div class="note">alloués · 1,268 µs</div>
                 </div>
             </div>
             <div class="bars mt-lg">
@@ -135,9 +135,9 @@
     // Mesures reproduites de docs/demo-runbook.md (.NET 11.0.0, Ryzen 7 5800X).
     private static readonly Bench[] Compression =
     [
-        new("GZip", 622.0, 17240, false),
-        new("Brotli", 585.8, 14824, false),
-        new("Zstandard", 311.0, 14006, true),
+        new("GZip", 656.9, 17240, false),
+        new("Brotli", 633.0, 14824, false),
+        new("Zstandard", 343.8, 14006, true),
     ];
 
     private static readonly CodePair[] Code =

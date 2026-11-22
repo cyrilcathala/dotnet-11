@@ -106,26 +106,27 @@ Frames = lignes de la pile commençant par `   at `. Mesuré en retirant puis re
 
 ## Benchmarks
 
-`dotnet run -c Release --project benchmarks/MissionControl.Benchmarks -- --filter * --job short` (.NET 11.0.0, AMD Ryzen 7 5800X, BenchmarkDotNet 0.16.0-preview.2, ShortRun : 3 itérations, 1 lancement, 3 warmups). Niveau de compression par défaut : `CompressionLevel.Optimal` pour GZip et Brotli, constructeur par défaut `ZstandardStream(Stream, CompressionMode.Compress)` pour Zstd. Échantillon : 1 000 trames CBOR concaténées. Les baselines tournent aussi en `net11.0`.
+`dotnet run -c Release --project benchmarks/MissionControl.Benchmarks -- --filter '*' --launchCount 3` (.NET 11.0.0, AMD Ryzen 7 5800X, BenchmarkDotNet 0.16.0-preview.2, job par défaut : itérations adaptatives, 3 lancements de processus, environ 10 minutes au total). Niveau de compression par défaut : `CompressionLevel.Optimal` pour GZip et Brotli, constructeur par défaut `ZstandardStream(Stream, CompressionMode.Compress)` pour Zstd. Échantillon : 1 000 trames CBOR concaténées. Les baselines tournent aussi en `net11.0`.
 
 ### Compression
 
-| Method    | Mean     | Error     | StdDev  | Ratio | Taille  | Gen0   | Allocated | Alloc Ratio |
-|---------- |---------:|----------:|--------:|------:|--------:|-------:|----------:|------------:|
-| GZip      | 622.0 μs |  71.22 μs | 3.90 μs |  1.00 | 17240 o | 2.9297 |  56.71 KB |        1.00 |
-| Brotli    | 585.8 μs | 101.11 μs | 5.54 μs |  0.94 | 14824 o |      - |  14.68 KB |        0.26 |
-| Zstandard | 311.0 μs |  12.98 μs | 0.71 μs |  0.50 | 14006 o | 0.4883 |  13.95 KB |        0.25 |
+| Method    | Mean     | Error   | StdDev   | Median   | Ratio | RatioSD | Taille  | Gen0   | Allocated | Alloc Ratio |
+|---------- |---------:|--------:|---------:|---------:|------:|--------:|--------:|-------:|----------:|------------:|
+| GZip      | 656.9 μs | 7.79 μs | 22.09 μs | 651.1 μs |  1.00 |    0.00 | 17240 o | 2.9297 |  56.71 KB |        1.00 |
+| Brotli    | 633.0 μs | 8.38 μs | 23.37 μs | 631.2 μs |  0.96 |    0.05 | 14824 o |      - |  14.68 KB |        0.26 |
+| Zstandard | 343.8 μs | 4.48 μs | 18.94 μs | 339.4 μs |  0.52 |    0.03 | 14006 o | 0.4883 |  13.95 KB |        0.25 |
 
 ### Flux sans copie (64 Ko, 16 segments, lecture par 4 Ko)
 
-| Method                 | Mean     | Error     | StdDev    | Ratio | Gen0   | Allocated | Alloc Ratio |
-|----------------------- |---------:|----------:|----------:|------:|-------:|----------:|------------:|
-| MemoryStreamToArray    | 2.820 us | 1.3749 us | 0.0754 us |  1.00 | 3.9063 |   65624 B |       1.000 |
-| ReadOnlySequenceStream | 1.217 us | 0.2876 us | 0.0158 us |  0.43 | 0.0038 |      80 B |       0.001 |
+| Method                 | Mean     | Error     | StdDev    | Ratio | RatioSD | Gen0   | Allocated | Alloc Ratio |
+|----------------------- |---------:|----------:|----------:|------:|--------:|-------:|----------:|------------:|
+| MemoryStreamToArray    | 3.104 us | 0.0392 us | 0.1507 us |  1.00 |    0.00 | 3.9063 |   65624 B |       1.000 |
+| ReadOnlySequenceStream | 1.268 us | 0.0132 us | 0.0282 us |  0.41 |    0.02 | 0.0038 |      80 B |       0.001 |
 
 ### Réserves de lecture
 
 - Pour la compression, seuls le temps et la colonne « Taille » sont exploitables. La colonne `Allocated` reflète la croissance du `MemoryStream` de sortie, et la mémoire native des codecs n'est pas comptée.
-- Brotli contre GZip : l'écart de temps est dans le bruit du job ShortRun (3 itérations). Ne pas en tirer de conclusion.
+- Brotli contre GZip : Brotli est environ 4 % plus rapide (633,0 ± 8,4 μs contre 656,9 ± 7,8 μs, intervalles disjoints), mais le ratio reste à 0,96 ± 0,05. L'écart est mesurable, mais trop faible pour en faire un argument.
+- Les temps absolus sont 5 à 10 % plus hauts qu'en ShortRun : la mesure a tourné avec l'AppHost Aspire lancé. Comparer les ratios plutôt que les microsecondes.
 - GZip et Brotli sont à `Optimal`, Zstd au niveau par défaut : les niveaux ne sont pas équivalents.
 - Le résultat robuste est celui des flux : 80 o contre 65 624 o alloués. C'est le chiffre à citer.
