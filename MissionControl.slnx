@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MissionControl.Contracts/MissionControl.Contracts.csproj" />
+    <Project Path="src/MissionControl.ServiceDefaults/MissionControl.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Contracts.Tests/Contracts.Tests.csproj" />
+  </Folder>
+</Solution>
