@@ -11,7 +11,7 @@ public sealed class TelemetryStore
         public TelemetryFrame? Latest;
     }
 
-    private readonly Dictionary<string, ProbeState> _probes = [];
+    private readonly Dictionary<string, ProbeState> _probes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Lock _gate = new();
     private long _received;
     private long _duplicates;

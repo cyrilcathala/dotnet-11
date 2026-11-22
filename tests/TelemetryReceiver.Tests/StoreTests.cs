@@ -32,4 +32,13 @@ public sealed class StoreTests
         store.TryAdd(DecoderTests.Frame(4));
         Assert.Equal(4, store.Latest("Pioneer-11")!.PacketId);
     }
+
+    [Fact]
+    public void Probe_names_are_case_insensitive()
+    {
+        var store = new TelemetryStore();
+        Assert.True(store.TryAdd(DecoderTests.Frame(1, "Pioneer-11")));
+        Assert.False(store.TryAdd(DecoderTests.Frame(1, "PIONEER-11")));
+        Assert.Equal(1, store.Latest("pioneer-11")!.PacketId);
+    }
 }
