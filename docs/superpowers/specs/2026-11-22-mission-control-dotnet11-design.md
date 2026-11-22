@@ -76,10 +76,17 @@ Le présentateur part d'une machine « vierge » côté .NET 11 et démarre le c
 | `aspire describe --format mermaid` | Génère le schéma de l'architecture Mission Control, réutilisé comme slide | — |
 | **Bonus** : auto-trust des certificats de dev sous WSL | Lancer l'AppHost depuis WSL, HTTPS fonctionne sans manipulation | Export / import manuel du certificat |
 
+Avec Aspire 17, les services se déclarent avec `AddDotnetProject(name, path)` (`AddProject<T>` est obsolète) :
+
+```csharp
+var probefactory = builder.AddDotnetProject("probefactory", "../ProbeFactory/ProbeFactory.csproj")
+    .WithHttpEndpoint();
+```
+
 L'AppHost déclare aussi `asteroid-scan` comme exécutable :
 
 ```csharp
-builder.AddExecutable("asteroid-scan", "dotnet", "../tools", "run", "asteroid-scan.cs");
+builder.AddExecutable("asteroid-scan", "dotnet", toolsDirectory, "run", "--file", "asteroid-scan.cs");
 ```
 
 ### Étape 1 — Construire la sonde : `ProbeFactory`
@@ -108,7 +115,7 @@ return result.ExitStatus.ExitCode == 0 ? Go(result.StandardOutput) : NoGo(result
 |---|---|---|
 | **API `Process` one-shot** (`Process.RunAndCaptureTextAsync`, `ProcessTextOutput`) | L'appel ci-dessus | `ProcessStartInfo` + redirections + `ReadToEndAsync` + `WaitForExitAsync` |
 | **`dotnet run -e`** | Variables passées sur la ligne de commande de l'outil | Variables via `psi.Environment[...]` |
-| **Runtime async** (`<Features>runtime-async=on</Features>`) | Pile d'appels **live** (`new StackTrace()` ou débogueur) pendant la séquence de compte à rebours | Même code : 13 frames en .NET 10, 5 en .NET 11 |
+| **Runtime async** (`<Features>runtime-async=on</Features>`) | Pile d'appels **live** (`new StackTrace()` ou débogueur) pendant la séquence de compte à rebours | Même code sur .NET 11 : 14 frames sans, 7 avec (mesuré sur l'endpoint ASP.NET). Le 13 de .NET 10 vient d'un `Main` console : ne pas le comparer directement |
 
 > Cadrage runtime async : seules les piles **live** (débogueur, profileur, `StackTrace`) changent. Les stack traces d'exception étaient déjà propres ; ne pas les présenter comme la nouveauté.
 
