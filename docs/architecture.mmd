@@ -1,0 +1,16 @@
+flowchart LR
+    resource0["asteroid-scan"]
+    resource1["launchcontrol"]
+    resource2["mcp"]
+    resource3["missioncontrol"]
+    resource4["probefactory"]
+    resource5["probesimulator"]
+    resource6["telemetryreceiver"]
+    resource1 --> resource4
+    resource1 --> resource5
+    resource2 --> resource1
+    resource2 --> resource3
+    resource2 --> resource6
+    resource3 --> resource5
+    resource5 --> resource6
+
