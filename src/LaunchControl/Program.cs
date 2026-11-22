@@ -1,11 +1,9 @@
 using System.Net;
-using System.Text.Json.Serialization;
 using LaunchControl;
 using MissionControl.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
-builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddSingleton<IPreflightRunner, PreflightRunner>();
 builder.Services.AddHttpClient("probefactory", c => c.BaseAddress = new Uri("https+http://probefactory"));
 builder.Services.AddHttpClient("probesimulator", c => c.BaseAddress = new Uri("https+http://probesimulator"));
@@ -14,7 +12,7 @@ var app = builder.Build();
 app.MapDefaultEndpoints();
 
 app.MapPost("/launches", async (LaunchRequest request, IHttpClientFactory clients, IPreflightRunner preflight,
-    IConfiguration config, CancellationToken ct) =>
+    CancellationToken ct, bool forceStorm = false) =>
 {
     var probeResponse = await clients.CreateClient("probefactory")
         .GetAsync($"/probes/{Uri.EscapeDataString(request.ProbeName)}", ct);
@@ -22,7 +20,6 @@ app.MapPost("/launches", async (LaunchRequest request, IHttpClientFactory client
         return Results.NotFound();
     probeResponse.EnsureSuccessStatusCode();
 
-    var forceStorm = string.Equals(config["FORCE_STORM"], "true", StringComparison.OrdinalIgnoreCase);
     var result = await preflight.RunAsync(request.ProbeName, forceStorm, ct);
 
     switch (result.Verdict)

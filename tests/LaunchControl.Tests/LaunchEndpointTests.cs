@@ -11,8 +11,16 @@ public sealed class LaunchEndpointTests
 {
     private sealed class FakePreflight(PreflightVerdict verdict) : IPreflightRunner
     {
+        public List<bool> ForceStormCalls { get; } = [];
+
         public Task<PreflightResult> RunAsync(string probeName, bool forceStorm, CancellationToken ct) =>
-            Task.FromResult(new PreflightResult(verdict, "rapport"));
+            Task.FromResult(Record(forceStorm, verdict));
+
+        private PreflightResult Record(bool forceStorm, PreflightVerdict v)
+        {
+            ForceStormCalls.Add(forceStorm);
+            return new PreflightResult(v, "rapport");
+        }
     }
 
     private sealed class FakeHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
@@ -26,12 +34,13 @@ public sealed class LaunchEndpointTests
         public List<string> StartedFlights { get; } = [];
     }
 
-    private static (HttpClient Client, FakeSimulator Simulator) Create(PreflightVerdict verdict, bool probeExists = true)
+    private static (HttpClient Client, FakeSimulator Simulator, FakePreflight Preflight) Create(PreflightVerdict verdict, bool probeExists = true)
     {
         var simulator = new FakeSimulator();
+        var fakePreflight = new FakePreflight(verdict);
         var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.ConfigureServices(s =>
         {
-            s.AddSingleton<IPreflightRunner>(new FakePreflight(verdict));
+            s.AddSingleton<IPreflightRunner>(fakePreflight);
             s.AddHttpClient("probefactory").ConfigurePrimaryHttpMessageHandler(() => new FakeHandler(_ =>
                 probeExists
                     ? new HttpResponseMessage(HttpStatusCode.OK)
@@ -46,13 +55,13 @@ public sealed class LaunchEndpointTests
                 return new HttpResponseMessage(HttpStatusCode.Accepted);
             }));
         }));
-        return (factory.CreateClient(), simulator);
+        return (factory.CreateClient(), simulator, fakePreflight);
     }
 
     [Fact]
     public async Task Go_starts_the_flight_and_returns_200()
     {
-        var (client, sim) = Create(PreflightVerdict.Go);
+        var (client, sim, _) = Create(PreflightVerdict.Go);
         var response = await client.PostAsJsonAsync("/launches", new LaunchRequest("Pioneer-11"), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var report = await response.Content.ReadFromJsonAsync<LaunchReport>(TestContext.Current.CancellationToken);
@@ -63,7 +72,7 @@ public sealed class LaunchEndpointTests
     [Fact]
     public async Task No_go_returns_409_and_starts_nothing()
     {
-        var (client, sim) = Create(PreflightVerdict.NoGo);
+        var (client, sim, _) = Create(PreflightVerdict.NoGo);
         var response = await client.PostAsJsonAsync("/launches", new LaunchRequest("Pioneer-11"), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         var report = await response.Content.ReadFromJsonAsync<LaunchReport>(TestContext.Current.CancellationToken);
@@ -74,7 +83,7 @@ public sealed class LaunchEndpointTests
     [Fact]
     public async Task Unavailable_preflight_returns_503_never_go()
     {
-        var (client, sim) = Create(PreflightVerdict.Unavailable);
+        var (client, sim, _) = Create(PreflightVerdict.Unavailable);
         var response = await client.PostAsJsonAsync("/launches", new LaunchRequest("Pioneer-11"), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Contains("Préflight indisponible", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
@@ -84,9 +93,18 @@ public sealed class LaunchEndpointTests
     [Fact]
     public async Task Unknown_probe_returns_404()
     {
-        var (client, sim) = Create(PreflightVerdict.Go, probeExists: false);
+        var (client, sim, _) = Create(PreflightVerdict.Go, probeExists: false);
         var response = await client.PostAsJsonAsync("/launches", new LaunchRequest("Ghost"), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Empty(sim.StartedFlights);
+    }
+
+    [Fact]
+    public async Task Force_storm_query_is_passed_to_the_runner_and_defaults_to_false()
+    {
+        var (client, _, preflight) = Create(PreflightVerdict.Go);
+        await client.PostAsJsonAsync("/launches?forceStorm=true", new LaunchRequest("Pioneer-11"), TestContext.Current.CancellationToken);
+        await client.PostAsJsonAsync("/launches", new LaunchRequest("Pioneer-11"), TestContext.Current.CancellationToken);
+        Assert.Equal([true, false], preflight.ForceStormCalls);
     }
 }
