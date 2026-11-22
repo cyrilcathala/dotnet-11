@@ -115,7 +115,41 @@ public sealed class IngestEndpointTests
             c.Request.Body = new DroppingBody(body);
         }, TestContext.Current.CancellationToken);
 
-        Assert.NotEqual(500, context.Response.StatusCode);
+        Assert.Equal(202, context.Response.StatusCode);
+        var store = factory.Services.GetRequiredService<TelemetryStore>();
+        Assert.Equal(4, store.Latest("Pioneer-11")!.PacketId);
+        Assert.Equal(4, store.Stats.Received);
+    }
+
+    [Fact]
+    public async Task Aborted_zstd_upload_keeps_decoded_frames_and_returns_202()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var compressed = new MemoryStream();
+        long afterFour = 0;
+        using (var zstd = new ZstandardStream(compressed, CompressionMode.Compress, leaveOpen: true))
+        {
+            for (var id = 1; id <= 5; id++)
+            {
+                zstd.Write(TelemetryCbor.Encode(DecoderTests.Frame(id)));
+                zstd.Flush();
+                if (id == 4) afterFour = compressed.Length;
+            }
+        }
+        // Frames 1-4 complets, puis la moitié des octets compressés de la trame 5.
+        var all = compressed.ToArray();
+        var cut = (int)(afterFour + (all.Length - afterFour) / 2);
+        var body = all.AsSpan(0, cut).ToArray();
+
+        var context = await factory.Server.SendAsync(c =>
+        {
+            c.Request.Method = "POST";
+            c.Request.Path = "/telemetry/Pioneer-11";
+            c.Request.Headers.ContentEncoding = "zstd";
+            c.Request.Body = new DroppingBody(body);
+        }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(202, context.Response.StatusCode);
         var store = factory.Services.GetRequiredService<TelemetryStore>();
         Assert.Equal(4, store.Latest("Pioneer-11")!.PacketId);
         Assert.Equal(4, store.Stats.Received);

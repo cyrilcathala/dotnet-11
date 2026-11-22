@@ -7,7 +7,7 @@ public sealed class TelemetryStore
 {
     private sealed class ProbeState
     {
-        public readonly HashSet<TelemetryFrame> Seen = new(EqualityComparer<TelemetryFrame>.Create(f => f.PacketId));
+        public readonly HashSet<TelemetryFrame> Seen = new(EqualityComparer<TelemetryFrame>.Create(f => f!.PacketId));
         public TelemetryFrame? Latest;
     }
 

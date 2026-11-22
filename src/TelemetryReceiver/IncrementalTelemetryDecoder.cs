@@ -37,6 +37,7 @@ public sealed class IncrementalTelemetryDecoder
         return frames;
     }
 
+    // Une trame à moitié arrivée se détecte par TrySkipValue(false) sur le lecteur jetable ; NeedsMoreData signifie seulement que le tampon est vide.
     // TrySkipValue(false) rend false tant que la valeur est incomplète, sans avancer : on l'essaie sur un lecteur jetable.
     private bool IsNextValueComplete(byte[] data)
     {
