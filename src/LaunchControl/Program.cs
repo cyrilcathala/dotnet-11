@@ -26,9 +26,15 @@ app.MapPost("/launches", async (LaunchRequest request, IHttpClientFactory client
     switch (result.Verdict)
     {
         case PreflightVerdict.Go:
-            var flight = await clients.CreateClient("probesimulator")
-                .PostAsJsonAsync("/flights", new StartFlightRequest(request.ProbeName), ct);
-            flight.EnsureSuccessStatusCode();
+            HttpResponseMessage? flight = null;
+            try
+            {
+                flight = await clients.CreateClient("probesimulator")
+                    .PostAsJsonAsync("/flights", new StartFlightRequest(request.ProbeName), ct);
+            }
+            catch (HttpRequestException) { } // simulateur injoignable
+            if (flight is not { IsSuccessStatusCode: true })
+                return Results.Problem(detail: "Simulateur indisponible", statusCode: StatusCodes.Status503ServiceUnavailable);
             return Results.Ok(new LaunchReport(request.ProbeName, "GO", result.Report));
         case PreflightVerdict.NoGo:
             return Results.Json(new LaunchReport(request.ProbeName, "NO-GO", result.Report),

@@ -34,7 +34,8 @@ public sealed class LaunchEndpointTests
         public List<string> StartedFlights { get; } = [];
     }
 
-    private static (HttpClient Client, FakeSimulator Simulator, FakePreflight Preflight) Create(PreflightVerdict verdict, bool probeExists = true)
+    private static (HttpClient Client, FakeSimulator Simulator, FakePreflight Preflight) Create(PreflightVerdict verdict, bool probeExists = true,
+        HttpStatusCode? simulatorStatus = HttpStatusCode.Accepted)
     {
         var simulator = new FakeSimulator();
         var fakePreflight = new FakePreflight(verdict);
@@ -52,7 +53,9 @@ public sealed class LaunchEndpointTests
             {
                 var body = req.Content!.ReadFromJsonAsync<StartFlightRequest>().GetAwaiter().GetResult()!;
                 simulator.StartedFlights.Add(body.ProbeName);
-                return new HttpResponseMessage(HttpStatusCode.Accepted);
+                return simulatorStatus is { } status
+                    ? new HttpResponseMessage(status)
+                    : throw new HttpRequestException("connexion refusée");
             }));
         }));
         return (factory.CreateClient(), simulator, fakePreflight);
@@ -88,6 +91,17 @@ public sealed class LaunchEndpointTests
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Contains("Préflight indisponible", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Empty(sim.StartedFlights);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(null)] // simulateur injoignable : le handler lève HttpRequestException
+    public async Task Go_with_simulator_down_returns_503_problem(HttpStatusCode? simulatorStatus)
+    {
+        var (client, _, _) = Create(PreflightVerdict.Go, simulatorStatus: simulatorStatus);
+        var response = await client.PostAsJsonAsync("/launches", new LaunchRequest("Pioneer-11"), TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Contains("Simulateur indisponible", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
