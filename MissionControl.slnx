@@ -7,6 +7,7 @@
     <Project Path="src/ProbeSimulator/ProbeSimulator.csproj" />
     <Project Path="src/TelemetryReceiver/TelemetryReceiver.csproj" />
     <Project Path="src/MissionControl.Api/MissionControl.Api.csproj" />
+    <Project Path="src/MissionControl.Mcp/MissionControl.Mcp.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Contracts.Tests/Contracts.Tests.csproj" />
@@ -15,5 +16,6 @@
     <Project Path="tests/ProbeSimulator.Tests/ProbeSimulator.Tests.csproj" />
     <Project Path="tests/TelemetryReceiver.Tests/TelemetryReceiver.Tests.csproj" />
     <Project Path="tests/MissionControl.Api.Tests/MissionControl.Api.Tests.csproj" />
+    <Project Path="tests/Mcp.Tests/Mcp.Tests.csproj" />
   </Folder>
 </Solution>
