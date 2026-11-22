@@ -68,8 +68,11 @@ Content-Type: application/json
 
 { "probeName": "{{probe}}" }
 
-### 2.3 Pile live du compte à rebours : "frames": 14 sans runtime-async, 7 avec
-GET {{launchcontrol}}/diagnostics/countdown-stack
+### 2.3 Pile live du compte à rebours, avec runtime async : "frames": 7
+GET {{launchcontrol}}/diagnostics/countdown-stack?runtimeAsync=true
+
+### 2.4 Le même fichier compilé sans runtime async (LaunchControl.ClassicAsync), même processus : "frames": 14
+GET {{launchcontrol}}/diagnostics/countdown-stack?runtimeAsync=false
 
 ############################################################
 ### ÉTAPE 3 : en vol (télémétrie CBOR + Zstd)

@@ -1,0 +1,175 @@
+@page "/asteroides"
+@using System.Diagnostics
+@using System.Text
+@inject SourceFiles Sources
+
+<StepHeader Step="Step" />
+
+<div class="grid grid-wide">
+    <Panel Title="Secteur Kuiper · tools/SectorMap.cs" Framed>
+        <Actions>
+            @if (_hit is { } h)
+            {
+                <span class="status bad">Astéroïde en (@h.Row, @h.Col)</span>
+            }
+            else if (_scanning)
+            {
+                <span class="status warn live">Balayage ligne par ligne</span>
+            }
+            <button class="btn btn-sm" disabled="@_scanning" @onclick="ScanAsync">Balayer le secteur</button>
+        </Actions>
+        <ChildContent>
+            @if (_map.Length == 0)
+            {
+                <pre class="code-block" style="color: var(--red)">Carte introuvable : tools/SectorMap.cs</pre>
+            }
+            else
+            {
+                <div style="overflow-x: auto">
+                    <div class="sector" style="grid-template-columns: 22px repeat(@_map[0].Length, 34px)">
+                        <span></span>
+                        @for (var c = 0; c < _map[0].Length; c++)
+                        {
+                            <span class="sector-axis">@c</span>
+                        }
+                        @for (var r = 0; r < _map.Length; r++)
+                        {
+                            <span class="sector-axis">@r</span>
+                            @for (var c = 0; c < _map[r].Length; c++)
+                            {
+                                <span class="cell @CellCss(r, c)" title="(@r, @c)"></span>
+                            }
+                        }
+                    </div>
+                </div>
+                <div class="row mt" style="gap: 24px">
+                    <span class="label">▲ sonde</span>
+                    <span class="label">● astéroïde</span>
+                    <span class="note">Parcours en ligne puis en colonne, sortie des deux boucles par <code>break outer;</code> au premier <code>#</code>.</span>
+                </div>
+            }
+        </ChildContent>
+    </Panel>
+
+    <Panel Title="Exécution réelle" Flush>
+        <Actions>
+            <button class="btn btn-sm btn-primary" disabled="@_running" @onclick="RunAsync">Lancer asteroid-scan.cs</button>
+        </Actions>
+        <ChildContent>
+<pre class="console" style="min-height: 260px"><span class="prompt">$</span> dotnet run --file asteroid-scan.cs
+@if (_running)
+{
+<span style="color: var(--muted)">compilation et exécution…</span>
+}
+else if (_output is not null)
+{
+<span class="@(_exitCode == 0 ? "" : "err")">@_output</span>
+<span class="@(_exitCode == 0 ? "prompt" : "err")">code de sortie @_exitCode · @_elapsed.TotalSeconds.ToString("0.0") s</span>
+}</pre>
+            <div class="panel-body">
+                <div class="note">Un seul fichier, pas de <code>.csproj</code>, qui en inclut deux autres par <code>#:include</code>. Dans le dashboard Aspire, c'est la ressource <code>asteroid-scan</code>.</div>
+            </div>
+        </ChildContent>
+    </Panel>
+</div>
+
+<div class="mt">
+    <CodeCompare Title="Un fichier, trois sources · aucune variante .NET 10" Pairs="Code" />
+</div>
+
+<StepNav Step="Step" />
+
+@code {
+    private static readonly MissionStep Step = Mission.ByNumber(4);
+
+    private static readonly CodePair[] Code =
+    [
+        new("asteroid-scan.cs", null, "tools/asteroid-scan.cs", AfterMarks: ["#:include", "StringStream", "grid[pos]", "break outer", "outer:"]),
+        new("SectorMap.cs", null, "tools/SectorMap.cs", AfterMarks: ["#"]),
+        new("Grid.cs", null, "tools/Grid.cs", AfterMarks: ["extension(", "this[Position p]"]),
+    ];
+
+    private string[] _map = [];
+    private (int Row, int Col)? _cursor, _hit;
+    private int _scannedUpTo = -1;
+    private bool _scanning, _running;
+    private string? _output;
+    private int _exitCode;
+    private TimeSpan _elapsed;
+
+    protected override void OnInitialized()
+    {
+        // La carte est lue dans le fichier source même, entre les guillemets de la chaîne brute.
+        var source = Sources.Read("tools/SectorMap.cs") ?? "";
+        var parts = source.Split("\"\"\"");
+        _map = parts.Length >= 3
+            ? parts[1].Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToArray()
+            : [];
+    }
+
+    private string CellCss(int r, int c)
+    {
+        var index = r * _map[0].Length + c;
+        var ch = _map[r][c];
+        var css = ch switch { '#' => "rock", 'P' => "probe", _ => "" };
+        if (index <= _scannedUpTo) css += " scanned";
+        if (_cursor == (r, c)) css += " cursor";
+        if (_hit == (r, c)) css += " hit";
+        return css;
+    }
+
+    private async Task ScanAsync()
+    {
+        _scanning = true;
+        _hit = null;
+        _scannedUpTo = -1;
+        var width = _map[0].Length;
+        // Même parcours que le script : break outer; au premier astéroïde.
+        for (var row = 0; row < _map.Length && _hit is null; row++)
+        {
+            for (var col = 0; col < _map[row].Length; col++)
+            {
+                _cursor = (row, col);
+                _scannedUpTo = row * width + col;
+                StateHasChanged();
+                await Task.Delay(70);
+                if (_map[row][col] == '#')
+                {
+                    _hit = (row, col);
+                    break;
+                }
+            }
+        }
+        _cursor = null;
+        _scanning = false;
+    }
+
+    private async Task RunAsync()
+    {
+        _running = true;
+        _output = null;
+        var watch = Stopwatch.StartNew();
+        try
+        {
+            var psi = new ProcessStartInfo("dotnet", ["run", "--file", Sources.FullPath("tools/asteroid-scan.cs")])
+            {
+                WorkingDirectory = Sources.FullPath("tools"),
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+            };
+            // Même API one-shot que LaunchControl (.NET 11).
+            var result = await Process.RunAndCaptureTextAsync(psi);
+            _exitCode = result.ExitStatus.ExitCode;
+            _output = (result.StandardOutput + result.StandardError).Trim();
+        }
+        catch (Exception e)
+        {
+            _exitCode = -1;
+            _output = e.Message;
+        }
+        _elapsed = watch.Elapsed;
+        _running = false;
+    }
+}

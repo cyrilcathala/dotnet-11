@@ -1,0 +1,38 @@
+@using System.Globalization
+<div class="gauge">
+    <svg viewBox="0 0 200 172" role="img" aria-label="@Label : @Reading @Unit">
+        <g transform="rotate(135 100 100)">
+            <circle class="gauge-track" cx="100" cy="100" r="@R" stroke-dasharray="@F(Arc) @F(Circumference)" />
+            <circle class="gauge-value" cx="100" cy="100" r="@R" style="stroke: @Color"
+                    stroke-dasharray="@F(Arc * Fraction) @F(Circumference)" />
+        </g>
+        @for (var i = 0; i <= 10; i++)
+        {
+            var angle = (135 + 27 * i) * Math.PI / 180;
+            var (x1, y1) = (100 + (R + 6) * Math.Cos(angle), 100 + (R + 6) * Math.Sin(angle));
+            var (x2, y2) = (100 + (R + (i % 5 == 0 ? 13 : 10)) * Math.Cos(angle), 100 + (R + (i % 5 == 0 ? 13 : 10)) * Math.Sin(angle));
+            <line class="gauge-tick" x1="@F(x1)" y1="@F(y1)" x2="@F(x2)" y2="@F(y2)" />
+        }
+        <text class="gauge-reading" x="100" y="106" text-anchor="middle">@Reading</text>
+        <text class="gauge-unit" x="100" y="128" text-anchor="middle">@Unit</text>
+    </svg>
+    <span class="label gauge-label">@Label</span>
+</div>
+
+@code {
+    [Parameter] public double? Value { get; set; }
+    [Parameter] public double Min { get; set; }
+    [Parameter] public double Max { get; set; } = 100;
+    [Parameter] public string Format { get; set; } = "0";
+    [Parameter] public string Unit { get; set; } = "";
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Color { get; set; } = "var(--text)";
+
+    private const double R = 74;
+    private static readonly double Circumference = 2 * Math.PI * R;
+    private static readonly double Arc = Circumference * .75;
+
+    private double Fraction => Value is { } v ? Math.Clamp((v - Min) / (Max - Min), 0, 1) : 0;
+    private string Reading => Value?.ToString(Format, CultureInfo.GetCultureInfo("fr-FR")) ?? "—";
+    private static string F(double d) => d.ToString("0.##", CultureInfo.InvariantCulture);
+}

@@ -1,0 +1,60 @@
+@page "/"
+@inject MissionState State
+
+<PageTitle>Mission Control · .NET 11</PageTitle>
+
+<section class="hero">
+    <div>
+        <div class="hero-kicker">
+            <span class="status ok live">Console en ligne</span>
+            <span class="label">Briefing de mission</span>
+        </div>
+        <h1 class="hero-title">MISSION<span>CONTROL</span></h1>
+        <p class="hero-lead">
+            Une sonde, huit étapes : la construire, la lancer, la suivre en vol, la piloter, la perdre,
+            puis confier la suite à un agent. Chaque étape montre une nouveauté de .NET 11 en fonctionnement,
+            face à son équivalent .NET 10.
+        </p>
+        <div class="hero-meta mt-lg">
+            <div><div class="label">Sonde</div><div class="v mono">@State.Probe</div></div>
+            <div><div class="label">Pas de tir</div><div class="v">Kourou</div></div>
+            <div><div class="label">Pile</div><div class="v">.NET 11.0.100</div></div>
+        </div>
+        <div class="row mt-lg">
+            <a class="btn btn-primary" href="preparation" data-nav="next">Commencer la mission <span aria-hidden="true">→</span></a>
+            <span class="label"><span class="kbd">←</span> <span class="kbd">→</span> pour naviguer</span>
+        </div>
+    </div>
+
+    <svg class="orbit" viewBox="0 0 520 520" aria-hidden="true">
+        <defs>
+            <radialGradient id="planet" cx="38%" cy="34%" r="70%">
+                <stop offset="0" stop-color="#2b3b4c" />
+                <stop offset=".55" stop-color="#0f1822" />
+                <stop offset="1" stop-color="#05080b" />
+            </radialGradient>
+        </defs>
+        <circle class="ring" cx="260" cy="260" r="250" stroke-dasharray="2 6" />
+        <circle class="ring" cx="260" cy="260" r="190" />
+        <circle class="ring" cx="260" cy="260" r="130" stroke-dasharray="1 4" />
+        <circle class="planet" cx="260" cy="260" r="92" />
+        <path d="M168 260 a92 92 0 0 0 184 0" fill="rgba(0,0,0,.35)" />
+        <g class="spin"><circle class="sat" cx="450" cy="260" r="4" /><line x1="450" y1="260" x2="260" y2="260" stroke="rgba(255,255,255,.06)" /></g>
+        <g class="spin slow"><circle cx="260" cy="10" r="3" fill="#fc3d21" /></g>
+        <text x="260" y="500" text-anchor="middle" class="label" fill="#565c66" style="font-size:10px;letter-spacing:.2em">ORBITE BASSE · 410 KM</text>
+    </svg>
+</section>
+
+<div class="steps">
+    @foreach (var step in Mission.Steps)
+    {
+        <a class="step-card" href="@step.Route">
+            <span class="step-card-go" aria-hidden="true">→</span>
+            <span class="step-card-num">@step.Number.ToString("00")</span>
+            <span class="label">@step.Phase</span>
+            <span class="step-card-title">@step.Title</span>
+            <span class="step-card-service">@step.Service</span>
+            <span class="step-card-features">@string.Join(" · ", step.Features)</span>
+        </a>
+    }
+</div>

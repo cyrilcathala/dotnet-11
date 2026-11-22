@@ -1,0 +1,128 @@
+@page "/incident"
+@implements IDisposable
+@inject MissionApi Api
+@inject MissionState State
+
+<StepHeader Step="Step" />
+
+<div class="grid grid-wide">
+    <TelemetryMonitor Probe="@State.Probe" SignalChanged="OnSignalChanged" />
+
+    <div class="stack">
+        <Panel Title="Autodestruction" Framed>
+            <div class="note">Commande <code>self-destruct</code> sur <strong>@State.Probe</strong>. Le simulateur arrête le vol : le flux de télémétrie se tait.</div>
+            @if (!_armed)
+            {
+                <button class="btn btn-danger btn-block mt" disabled="@_busy" @onclick="Arm">Armer · 6.1</button>
+            }
+            else
+            {
+                <div class="grid grid-2 mt">
+                    <button class="btn" @onclick="() => _armed = false">Annuler</button>
+                    <button class="btn btn-danger armed" disabled="@_busy" @onclick='() => SendAsync("self-destruct", null, "6.1")'>Confirmer</button>
+                </div>
+            }
+        </Panel>
+
+        <Panel Title="Après l'incident" Flush>
+            <button class="scenario" disabled="@_busy" @onclick='() => SendAsync("thrust", 1, "6.2")'>
+                <span class="scenario-id">6.2</span>
+                <span><span class="scenario-title">Relancer une poussée</span><div class="scenario-hint">thrust · deltaV = 1 · @State.Probe</div></span>
+                <span class="scenario-expect">ProbeLost</span>
+            </button>
+            <button class="scenario" disabled="@_busy" @onclick='() => SendAsync("thrust", 1, "6.3", "Inconnue")'>
+                <span class="scenario-id">6.3</span>
+                <span><span class="scenario-title">Sonde jamais lancée</span><div class="scenario-hint">thrust · probeName = Inconnue</div></span>
+                <span class="scenario-expect">Rejected</span>
+            </button>
+        </Panel>
+
+        <Panel Title="Main courante">
+            @if (_log.Count == 0)
+            {
+                <div class="note">Aucun événement.</div>
+            }
+            @foreach (var e in _log.AsEnumerable().Reverse())
+            {
+                <div class="row" style="gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line)">
+                    <span class="mono" style="font-size: 12px; color: var(--muted)">@e.At.ToString("HH:mm:ss")</span>
+                    <span class="badge @e.Css">@e.Tag</span>
+                    <span style="font-size: 13px">@e.Text</span>
+                </div>
+            }
+        </Panel>
+    </div>
+</div>
+
+<div class="grid grid-2 mt">
+    <Panel Title="CommandResult" Framed>
+        <Actions><span class="label">POST /commands</span></Actions>
+        <ChildContent>
+            <OutcomeBanner Exchange="_exchange" />
+            <div class="note mt">
+                Le <code>switch</code> sur l'union est exhaustif : <code>ProbeLost</code> a sa branche, sans <code>default</code>.
+                Dans le dashboard Aspire, la trace de la commande montre où la mission s'est arrêtée.
+            </div>
+        </ChildContent>
+    </Panel>
+    <ExchangeView Exchange="_exchange" Busy="_busy" Title="Liaison MissionControl" />
+</div>
+
+<div class="mt">
+    <HistoryStream @ref="_history" />
+</div>
+
+<div class="mt">
+    <CodeCompare Title="Le cas ProbeLost, de bout en bout" Pairs="Code" MaxHeight="420" />
+</div>
+
+<StepNav Step="Step" />
+
+@code {
+    private static readonly MissionStep Step = Mission.ByNumber(6);
+
+    private record LogEntry(DateTimeOffset At, string Tag, string Css, string Text);
+
+    private static readonly CodePair[] Code =
+    [
+        new("Simulateur", null, "src/ProbeSimulator/FlightRegistry.cs", AfterMarks: ["self-destruct", "\"lost\"", "flight.Stop()"]),
+        new("Dispatcher", null, "src/MissionControl.Api/CommandDispatcher.cs", AfterMarks: ["ProbeLost", "\"lost\""]),
+        new("union", "compare/net10/Compare.Net10/MissionControl/CommandResult.cs", "src/MissionControl.Api/CommandResult.cs",
+            ["ProbeLost"], ["ProbeLost"]),
+    ];
+
+    private readonly List<LogEntry> _log = [];
+    private bool _armed, _busy;
+    private Exchange? _exchange;
+    private HistoryStream? _history;
+    private Timer? _disarm;
+
+    private void Arm()
+    {
+        _armed = true;
+        // Désarmement automatique, comme une sécurité de pupitre.
+        _disarm?.Dispose();
+        _disarm = new Timer(_ => InvokeAsync(() => { _armed = false; StateHasChanged(); }), null, 8000, Timeout.Infinite);
+    }
+
+    private async Task SendAsync(string type, double? value, string id, string? probe = null)
+    {
+        _busy = true;
+        _armed = false;
+        _exchange = await Api.PostAsync(MissionApi.MissionControl, "/commands", Commands.Build(type, probe ?? State.Probe, value));
+        _busy = false;
+        var outcome = CommandOutcome.From(_exchange.Json);
+        _log.Add(new(DateTimeOffset.UtcNow, id, outcome?.Css ?? "bad", $"{type} → {outcome?.Case ?? _exchange.Error ?? "?"}"));
+        if (_history is not null) await _history.LoadAsync();
+    }
+
+    private void OnSignalChanged(TelemetryMonitor.SignalState state)
+    {
+        if (state == TelemetryMonitor.SignalState.Lost)
+            _log.Add(new(DateTimeOffset.UtcNow, "LOS", "bad", "Plus aucune trame depuis 3 s"));
+        else if (state == TelemetryMonitor.SignalState.Nominal)
+            _log.Add(new(DateTimeOffset.UtcNow, "AOS", "ok", "Signal acquis"));
+    }
+
+    public void Dispose() => _disarm?.Dispose();
+}

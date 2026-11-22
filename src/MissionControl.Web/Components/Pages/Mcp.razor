@@ -1,0 +1,197 @@
+@page "/mcp"
+@inject MissionApi Api
+@inject MissionState State
+
+<StepHeader Step="Step" />
+
+<div class="grid grid-side">
+    <div class="stack">
+        <Panel Title="Préparer une sonde neuve">
+            <div class="note">@(State.Probe) est-elle perdue depuis l'étape 06 ? Construire une nouvelle sonde avant de passer la main à l'agent.</div>
+            <div class="row mt">
+                <input class="input" style="flex: 1" @bind="_newProbe" spellcheck="false" />
+                <button class="btn" disabled="@_busy" @onclick="PrepareAsync">Construire</button>
+            </div>
+            @if (_prepared is not null)
+            {
+                <div class="note mt">@_prepared</div>
+            }
+        </Panel>
+
+        <Panel Title="Protocole JSON-RPC" Flush>
+            <button class="scenario" disabled="@_busy" @onclick="InitializeAsync">
+                <span class="scenario-id">7.1</span>
+                <span><span class="scenario-title">initialize</span><div class="scenario-hint">Poignée de main, protocole 2025-06-18</div></span>
+                <span class="scenario-expect">serverInfo</span>
+            </button>
+            <button class="scenario" disabled="@_busy" @onclick="ListToolsAsync">
+                <span class="scenario-id">7.2</span>
+                <span><span class="scenario-title">tools/list</span><div class="scenario-hint">Les outils exposés par le serveur</div></span>
+                <span class="scenario-expect">3 outils</span>
+            </button>
+            <button class="scenario" disabled="@_busy" @onclick='() => CallAsync("get_telemetry", new { probeName = State.Probe })'>
+                <span class="scenario-id">7.3</span>
+                <span><span class="scenario-title">tools/call · get_telemetry</span><div class="scenario-hint">probeName = @State.Probe</div></span>
+                <span class="scenario-expect">texte</span>
+            </button>
+        </Panel>
+
+        <Panel Title="Connexion d'un agent">
+            <div class="note">
+                Brancher un client MCP sur <code>http://localhost:6277/</code> (transport HTTP, sans état),
+                puis lui demander de lancer la sonde, d'envoyer une commande et de lire sa télémétrie.
+            </div>
+        </Panel>
+    </div>
+
+    <div class="stack">
+        @if (_tools.Count > 0)
+        {
+            <Panel Title="Outils du serveur · MissionTools" Framed Flush>
+                @foreach (var tool in _tools)
+                {
+                    <div class="tool">
+                        <div class="row">
+                            <span class="tool-name">@tool.Name</span>
+                            <span class="spacer"></span>
+                            <button class="btn btn-sm" disabled="@_busy" @onclick="() => CallAsync(tool.Name, ArgumentsFor(tool.Name))">Appeler</button>
+                        </div>
+                        <div class="note">@tool.Description</div>
+                        <div class="row" style="gap: 6px">
+                            @foreach (var p in tool.Parameters)
+                            {
+                                <span class="feature mono" style="font-size: 11.5px">@p</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </Panel>
+        }
+
+        <Panel Title="Séquence d'agent" Framed>
+            <Actions>
+                <span class="label">Plan B scripté · aucun modèle</span>
+                <button class="btn btn-sm btn-primary" disabled="@_busy" @onclick="RunAgentAsync">Rejouer</button>
+            </Actions>
+            <ChildContent>
+                @if (_transcript.Count == 0)
+                {
+                    <div class="note">launch_probe → send_command → get_telemetry, sur <strong>@State.Probe</strong>, par les mêmes appels JSON-RPC qu'un agent.</div>
+                }
+                @foreach (var turn in _transcript)
+                {
+                    <div class="turn">
+                        <div class="turn-call"><span class="label">tools/call</span> <span class="mono">@turn.Call</span></div>
+                        <div class="turn-result @(turn.Result is null ? "pending" : "")">@(turn.Result ?? "…")</div>
+                    </div>
+                }
+            </ChildContent>
+        </Panel>
+
+        <ExchangeView Exchange="_exchange" Busy="_busy" Title="Liaison MCP · POST /" />
+    </div>
+</div>
+
+<div class="mt">
+    <CodeCompare Title="Serveur MCP · template dotnet new mcpserver" Pairs="Code" />
+</div>
+
+<StepNav Step="Step" />
+
+@code {
+    private static readonly MissionStep Step = Mission.ByNumber(7);
+
+    private record Tool(string Name, string Description, string[] Parameters);
+    private class Turn(string call) { public string Call { get; } = call; public string? Result { get; set; } }
+
+    private static readonly CodePair[] Code =
+    [
+        new("Program.cs", null, "src/MissionControl.Mcp/Program.cs", AfterMarks: ["AddMcpServer", "WithHttpTransport", "Stateless", "WithTools", "MapMcp"]),
+        new("MissionTools.cs", null, "src/MissionControl.Mcp/Tools/MissionTools.cs", AfterMarks: ["[McpServerTool]", "[Description("]),
+    ];
+
+    private readonly List<Tool> _tools = [];
+    private readonly List<Turn> _transcript = [];
+    private Exchange? _exchange;
+    private bool _busy;
+    private int _id = 1;
+    private string _newProbe = "Pioneer-13";
+    private string? _prepared;
+
+    private object ArgumentsFor(string tool) => tool switch
+    {
+        "send_command" => new { probeName = State.Probe, type = "thrust", value = 1.5 },
+        _ => new { probeName = State.Probe },
+    };
+
+    private async Task PrepareAsync()
+    {
+        _busy = true;
+        var ex = await Api.PostAsync(MissionApi.ProbeFactory, "/probes", new { name = _newProbe, kind = "Orbiter" },
+            [new("Accept-Language", "fr")]);
+        _prepared = ex.Status switch
+        {
+            201 => $"{_newProbe} construite. Elle devient la sonde de la console.",
+            400 => $"{_newProbe} existe déjà : elle devient la sonde de la console.",
+            _ => ex.Error ?? $"{ex.Status} {ex.Reason}",
+        };
+        if (ex.Status is 201 or 400) State.Probe = _newProbe;
+        _exchange = ex;
+        _busy = false;
+    }
+
+    private async Task InitializeAsync()
+    {
+        _busy = true;
+        _exchange = await Api.McpAsync(_id++, "initialize", new
+        {
+            protocolVersion = "2025-06-18",
+            capabilities = new { },
+            clientInfo = new { name = "mission-console", version = "1" },
+        });
+        _busy = false;
+    }
+
+    private async Task ListToolsAsync()
+    {
+        _busy = true;
+        _exchange = await Api.McpAsync(_id++, "tools/list", null);
+        _tools.Clear();
+        foreach (var t in _exchange.Json?["result"]?["tools"]?.AsArray() ?? [])
+        {
+            var properties = t?["inputSchema"]?["properties"]?.AsObject();
+            _tools.Add(new Tool(t?["name"]?.ToString() ?? "?", t?["description"]?.ToString() ?? "",
+                properties?.Select(p => $"{p.Key}: {p.Value?["type"]}").ToArray() ?? []));
+        }
+        _busy = false;
+    }
+
+    private async Task<string?> CallAsync(string tool, object arguments)
+    {
+        _busy = true;
+        _exchange = await Api.McpAsync(_id++, "tools/call", new { name = tool, arguments });
+        _busy = false;
+        return _exchange.Json?["result"]?["content"]?[0]?["text"]?.ToString() ?? _exchange.Error;
+    }
+
+    private async Task RunAgentAsync()
+    {
+        _transcript.Clear();
+        (string Tool, object Args)[] plan =
+        [
+            ("launch_probe", new { probeName = State.Probe }),
+            ("send_command", new { probeName = State.Probe, type = "thrust", value = 1.5 }),
+            ("get_telemetry", new { probeName = State.Probe }),
+        ];
+        foreach (var (tool, args) in plan)
+        {
+            var turn = new Turn($"{tool} {JsonSerializer.Serialize(args)}");
+            _transcript.Add(turn);
+            StateHasChanged();
+            // Laisse quelques trames arriver après le lancement avant de lire la télémétrie.
+            if (tool == "get_telemetry") await Task.Delay(2000);
+            turn.Result = await CallAsync(tool, args);
+            StateHasChanged();
+        }
+    }
+}

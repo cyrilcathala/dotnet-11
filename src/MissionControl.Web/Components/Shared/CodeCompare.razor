@@ -1,0 +1,76 @@
+<section class="panel">
+    <header class="panel-head">
+        <span class="label label-strong">@Title</span>
+        <span class="spacer"></span>
+        <span class="label">Sources lues dans le dépôt</span>
+    </header>
+    @if (Pairs.Length > 1)
+    {
+        <div class="compare-tabs" role="tablist">
+            @for (var i = 0; i < Pairs.Length; i++)
+            {
+                var index = i;
+                <button role="tab" class="@(index == _selected ? "on" : "")" @onclick="() => Select(index)">@Pairs[index].Label</button>
+            }
+        </div>
+    }
+    @{
+        var pair = Pairs[_selected];
+        var split = pair.Before is not null && _focus is null;
+    }
+    @* La largeur de la colonne gauche (--left) est réglée par compare.js, hors du rendu Blazor. *@
+    <div class="compare @(split ? "split" : "single")">
+        @if (pair.Before is { } before && _focus is null or Side.Before)
+        {
+            <div class="compare-col">
+                <div class="compare-title">
+                    <span class="ver">@pair.BeforeLabel</span>
+                    <span class="path" title="@before">@before</span>
+                    <ExpandButton Expanded="_focus is not null" OnClick="() => Toggle(Side.Before)" />
+                </div>
+                <CodeView Path="@before" Highlight="pair.BeforeHighlight" Legacy MaxHeight="Height" />
+            </div>
+        }
+        @if (split)
+        {
+            <div class="splitter" role="separator" aria-orientation="vertical" aria-label="Redimensionner les colonnes"
+                 tabindex="0" title="Glisser pour redimensionner · double-clic pour revenir à 50/50"></div>
+        }
+        @if (_focus is null or Side.After)
+        {
+            <div class="compare-col">
+                <div class="compare-title">
+                    <span class="ver v11">@pair.AfterLabel</span>
+                    <span class="path" title="@pair.After">@pair.After</span>
+                    @if (pair.Before is not null)
+                    {
+                        <ExpandButton Expanded="_focus is not null" OnClick="() => Toggle(Side.After)" />
+                    }
+                </div>
+                <CodeView Path="@pair.After" Highlight="pair.AfterHighlight" MaxHeight="Height" />
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Avant / après";
+    [Parameter, EditorRequired] public required CodePair[] Pairs { get; set; }
+    [Parameter] public int? MaxHeight { get; set; } = 520;
+
+    private enum Side { Before, After }
+
+    private int _selected;
+    private Side? _focus;
+
+    // Un fichier seul sur toute la largeur a droit à un peu plus de hauteur.
+    private int? Height => _focus is null ? MaxHeight : MaxHeight + 200;
+
+    private void Select(int index)
+    {
+        _selected = index;
+        _focus = null;
+    }
+
+    private void Toggle(Side side) => _focus = _focus is null ? side : null;
+}

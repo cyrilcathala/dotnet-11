@@ -1,0 +1,36 @@
+@inject SourceFiles Sources
+
+@if (_lines is null)
+{
+    <pre class="code"><span class="ln" style="color: var(--red)">Fichier introuvable : @Path</span></pre>
+}
+else
+{
+    <pre class="code" style="@(MaxHeight is { } h ? $"max-height:{h}px" : null)">@foreach (var line in _lines)
+{<span class="ln @line.Css">@((MarkupString)line.Html)</span>}</pre>
+}
+
+@code {
+    /// <summary>Chemin relatif à la racine du dépôt.</summary>
+    [Parameter, EditorRequired] public required string Path { get; set; }
+
+    /// <summary>Fragments à surligner : toute ligne qui en contient un est marquée.</summary>
+    [Parameter] public string[] Highlight { get; set; } = [];
+
+    /// <summary>Surlignage « ancien code » (rouge) plutôt que « nouveauté » (bleu).</summary>
+    [Parameter] public bool Legacy { get; set; }
+
+    [Parameter] public int? MaxHeight { get; set; }
+
+    private record Line(string Html, string Css);
+    private Line[]? _lines;
+
+    protected override void OnParametersSet()
+    {
+        var text = Sources.Read(Path);
+        _lines = text?.TrimEnd('\n').Split('\n')
+            .Select(l => new Line(CSharpHighlighter.ToHtml(l),
+                Highlight.Any(h => l.Contains(h, StringComparison.Ordinal)) ? (Legacy ? "hl-old" : "hl") : ""))
+            .ToArray();
+    }
+}

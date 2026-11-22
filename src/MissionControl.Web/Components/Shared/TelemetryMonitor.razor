@@ -1,0 +1,188 @@
+@using System.Globalization
+@implements IAsyncDisposable
+@inject MissionApi Api
+
+<section class="panel framed" style="overflow: hidden">
+    <header class="panel-head">
+        <span class="label label-strong">Télémétrie · @Probe</span>
+        <span class="spacer"></span>
+        <span class="label">GET /telemetry/@Probe/latest · toutes les 500 ms</span>
+        <span class="status @SignalCss">@SignalText</span>
+    </header>
+
+    <div style="position: relative">
+        @if (Signal == SignalState.Lost)
+        {
+            <div class="los">
+                <div class="los-inner">
+                    <div class="los-title">LOSS OF SIGNAL</div>
+                    <div class="label mt">Dernier paquet #@_latest?.PacketId · il y a @SinceLast.TotalSeconds.ToString("0") s</div>
+                </div>
+            </div>
+        }
+
+        <div class="panel-body">
+            <div class="gauges">
+                <Gauge Label="Altitude" Unit="km" Value="_latest?.AltitudeKm" Min="400" Max="@AltitudeMax" Format="0.0" />
+                <Gauge Label="Vitesse" Unit="km/s" Value="_latest?.VelocityKmS" Min="7.5" Max="8" Format="0.000" Color="var(--cyan)" />
+                <Gauge Label="Batterie" Unit="%" Value="_latest?.BatteryPercent" Min="0" Max="100" Format="0.0"
+                       Color="@(_latest?.BatteryPercent < 20 ? "var(--red)" : "var(--green)")" />
+            </div>
+        </div>
+
+        <div class="panel-body" style="padding-top: 0">
+            <div class="row" style="justify-content: space-between">
+                <span class="label">Profil d'altitude · @_altitudes.Count dernières trames</span>
+                <span class="label">@(_latest is null ? "" : _latest.Timestamp.ToString("HH:mm:ss.fff") + " UTC")</span>
+            </div>
+            <svg class="sparkline mt" viewBox="0 0 600 90" preserveAspectRatio="none">
+                <line x1="0" y1="89.5" x2="600" y2="89.5" />
+                @if (_altitudes.Count > 1)
+                {
+                    <path class="area" d="@Path(true)" />
+                    <path class="line" d="@Path(false)" />
+                }
+            </svg>
+        </div>
+
+        <div class="readouts">
+            <div class="readout">
+                <div class="label">Paquet</div>
+                <div class="readout-value">#@(_latest?.PacketId.ToString() ?? "—")</div>
+            </div>
+            <div class="readout">
+                <div class="label">Trames reçues</div>
+                <div class="readout-value">@(_stats?.Received.ToString("N0") ?? "—")</div>
+            </div>
+            <div class="readout">
+                <div class="label">Doublons écartés</div>
+                <div class="readout-value" style="color: @(_stats?.Duplicates > 0 ? "var(--amber)" : "inherit")">@(_stats?.Duplicates.ToString("N0") ?? "—")</div>
+            </div>
+            <div class="readout">
+                <div class="label">Encodage</div>
+                <div class="readout-value small">CBOR · Zstd</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public required string Probe { get; set; }
+
+    /// <summary>Remonté à chaque nouvelle trame et à chaque changement d'état du signal.</summary>
+    [Parameter] public EventCallback<SignalState> SignalChanged { get; set; }
+
+    public enum SignalState { Waiting, Nominal, Lost }
+
+    private record Frame(long PacketId, DateTimeOffset Timestamp, double AltitudeKm, double VelocityKmS, double BatteryPercent);
+    private record Stats(long Received, long Duplicates);
+
+    private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
+    private static readonly TimeSpan LossAfter = TimeSpan.FromSeconds(3);
+
+    private readonly List<double> _altitudes = [];
+    private Frame? _latest;
+    private Stats? _stats;
+    private DateTimeOffset _lastNewFrameAt;
+    private SignalState _reported = SignalState.Waiting;
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource _cts = new();
+    private string? _probe;
+
+    private TimeSpan SinceLast => DateTimeOffset.UtcNow - _lastNewFrameAt;
+
+    private SignalState Signal => _latest is null ? SignalState.Waiting
+        : SinceLast > LossAfter ? SignalState.Lost : SignalState.Nominal;
+
+    private string SignalCss => Signal switch
+    {
+        SignalState.Nominal => "ok live",
+        SignalState.Lost => "bad",
+        _ => "idle",
+    };
+
+    private string SignalText => Signal switch
+    {
+        SignalState.Nominal => "Signal acquis",
+        SignalState.Lost => "Signal perdu",
+        _ => "Pas de signal",
+    };
+
+    private double AltitudeMax => Math.Max(460, Math.Ceiling(((_latest?.AltitudeKm ?? 400) + 20) / 20) * 20);
+
+    protected override void OnParametersSet()
+    {
+        if (_probe == Probe) return;
+        _probe = Probe;
+        _altitudes.Clear();
+        _latest = null;
+        _reported = SignalState.Waiting;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+        _timer = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
+        _ = PollAsync(_cts.Token);
+    }
+
+    private async Task PollAsync(CancellationToken ct)
+    {
+        try
+        {
+            do
+            {
+                await RefreshAsync(ct);
+            } while (await _timer!.WaitForNextTickAsync(ct));
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task RefreshAsync(CancellationToken ct)
+    {
+        try
+        {
+            var client = Api.Client(MissionApi.TelemetryReceiver);
+            using var latest = await client.GetAsync($"/telemetry/{Uri.EscapeDataString(Probe)}/latest", ct);
+            if (latest.IsSuccessStatusCode && await latest.Content.ReadFromJsonAsync<Frame>(Web, ct) is { } frame
+                && frame.PacketId != _latest?.PacketId)
+            {
+                _latest = frame;
+                _lastNewFrameAt = DateTimeOffset.UtcNow;
+                _altitudes.Add(frame.AltitudeKm);
+                if (_altitudes.Count > 60) _altitudes.RemoveAt(0);
+            }
+            _stats = await client.GetFromJsonAsync<Stats>("/telemetry/stats", Web, ct);
+        }
+        catch (Exception e) when (e is HttpRequestException or JsonException) { }
+
+        await InvokeAsync(async () =>
+        {
+            if (Signal != _reported)
+            {
+                _reported = Signal;
+                await SignalChanged.InvokeAsync(_reported);
+            }
+            StateHasChanged();
+        });
+    }
+
+    private string Path(bool area)
+    {
+        var min = _altitudes.Min() - 0.5;
+        var max = _altitudes.Max() + 0.5;
+        var step = 600.0 / Math.Max(1, _altitudes.Count - 1);
+        var points = _altitudes.Select((a, i) =>
+            $"{(i * step).ToString("0.#", CultureInfo.InvariantCulture)},{(86 - (a - min) / (max - min) * 76).ToString("0.#", CultureInfo.InvariantCulture)}");
+        var line = "M" + string.Join(" L", points);
+        var lastX = ((_altitudes.Count - 1) * step).ToString("0.#", CultureInfo.InvariantCulture);
+        return area ? $"{line} L{lastX},90 L0,90 Z" : line;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _timer?.Dispose();
+        _cts.Dispose();
+    }
+}

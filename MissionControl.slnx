@@ -3,11 +3,13 @@
     <Project Path="src/MissionControl.Contracts/MissionControl.Contracts.csproj" />
     <Project Path="src/MissionControl.ServiceDefaults/MissionControl.ServiceDefaults.csproj" />
     <Project Path="src/ProbeFactory/ProbeFactory.csproj" />
+    <Project Path="src/LaunchControl.ClassicAsync/LaunchControl.ClassicAsync.csproj" />
     <Project Path="src/LaunchControl/LaunchControl.csproj" />
     <Project Path="src/ProbeSimulator/ProbeSimulator.csproj" />
     <Project Path="src/TelemetryReceiver/TelemetryReceiver.csproj" />
     <Project Path="src/MissionControl.Api/MissionControl.Api.csproj" />
     <Project Path="src/MissionControl.Mcp/MissionControl.Mcp.csproj" />
+    <Project Path="src/MissionControl.Web/MissionControl.Web.csproj" />
     <Project Path="src/MissionControl.AppHost/MissionControl.AppHost.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">

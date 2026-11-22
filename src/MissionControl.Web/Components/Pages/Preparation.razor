@@ -1,0 +1,156 @@
+@page "/preparation"
+@implements IAsyncDisposable
+@inject MissionApi Api
+
+<StepHeader Step="Step" />
+
+<div class="grid grid-wide">
+    <Panel Title="Ressources de l'AppHost" Framed Flush>
+        <Actions>
+            <span class="label">GET /health · toutes les 2 s</span>
+            <span class="status @(AllHealthy ? "ok" : "warn") live">@HealthyCount / @MissionApi.Services.Length en ligne</span>
+        </Actions>
+        <ChildContent>
+            <div class="arch panel-body">
+                <svg viewBox="0 0 960 345" role="img" aria-label="Architecture de Mission Control">
+                    <defs>
+                        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                            <path d="M0,1 L9,5 L0,9" fill="none" stroke="rgba(255,255,255,.5)" />
+                        </marker>
+                    </defs>
+                    <path class="edge" d="M210,178 C245,178 245,68 278,68" />
+                    <path class="edge" d="M210,178 C245,178 245,288 278,288" />
+                    <path class="edge" d="M125,206 C125,335 845,335 845,208" />
+                    <path class="edge" d="M450,68 L518,68" />
+                    <path class="edge" d="M450,68 C485,68 485,178 518,178" />
+                    <path class="edge" d="M450,288 C485,288 485,178 518,178" />
+                    <path class="edge flow" d="M690,178 L758,178" />
+                    @foreach (var node in Nodes)
+                    {
+                        <g class="node @NodeCss(node.Name)" transform="translate(@node.X @node.Y)">
+                            <rect width="170" height="56" rx="2" />
+                            <circle cx="16" cy="20" r="3.5" fill="@NodeDot(node.Name)" />
+                            <text x="28" y="24">@node.Name</text>
+                            <text class="sub" x="16" y="42">@node.Role</text>
+                        </g>
+                    }
+                </svg>
+            </div>
+            <table class="table" style="border-top: 1px solid var(--line)">
+                <thead><tr><th class="label">Ressource</th><th class="label">Rôle</th><th class="label">État</th><th class="label">Latence</th></tr></thead>
+                <tbody>
+                    @foreach (var node in Nodes)
+                    {
+                        _health.TryGetValue(node.Name, out var h);
+                        <tr>
+                            <td>@node.Name</td>
+                            <td style="font-family: var(--display)">@node.Role</td>
+                            <td>
+                                @if (node.Name == "asteroid-scan")
+                                {
+                                    <span class="status idle">Exécutable · voir le dashboard</span>
+                                }
+                                else if (h is null)
+                                {
+                                    <span class="status idle">Sondage…</span>
+                                }
+                                else
+                                {
+                                    <span class="status @(h.Ok ? "ok" : "bad")">@(h.Ok ? "Healthy" : "Injoignable")</span>
+                                }
+                            </td>
+                            <td>@(h is { Ok: true } ? $"{h.Ms:0} ms" : "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </ChildContent>
+    </Panel>
+
+    <div class="stack">
+        <Panel Title="Séquence de mise en route">
+            <ol class="note" style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 14px">
+                <li><strong>Installer le SDK 11</strong><br /><code>dotnetup sdk install 11.0.1xx</code></li>
+                <li><strong>Démarrer l'AppHost</strong><br /><code>aspire run</code></li>
+                <li><strong>Générer le schéma</strong><br /><code>aspire describe --format mermaid</code></li>
+                <li><strong>Bonus WSL</strong><br /><code>dotnet dev-certs https --trust</code> approuve le certificat dans WSL et dans Windows.</li>
+            </ol>
+        </Panel>
+        <div class="caveat">
+            <strong>Au terminal.</strong> Ces commandes se jouent en direct dans un terminal et le dashboard Aspire
+            (page Terminals, console d'<code class="inline-code">asteroid-scan</code>). La console ne fait que sonder l'état des services.
+        </div>
+    </div>
+</div>
+
+<div class="mt">
+    <CodeCompare Title="Déclaration des ressources · Aspire 17" Pairs="Code" />
+</div>
+
+<StepNav Step="Step" />
+
+@code {
+    private static readonly MissionStep Step = Mission.ByNumber(0);
+
+    private record Node(string Name, string Role, int X, int Y);
+    private record Health(bool Ok, double Ms);
+
+    private static readonly Node[] Nodes =
+    [
+        new("mcp", "Serveur MCP", 40, 150),
+        new("launchcontrol", "Lancement", 280, 40),
+        new("missioncontrol", "Commandes", 280, 260),
+        new("probefactory", "Fabrication", 520, 40),
+        new("probesimulator", "Simulateur de vol", 520, 150),
+        new("telemetryreceiver", "Réception sol", 760, 150),
+        new("asteroid-scan", "Outil · fichier .cs", 760, 40),
+    ];
+
+    private static readonly CodePair[] Code =
+    [
+        new("AppHost.cs", null, "src/MissionControl.AppHost/AppHost.cs",
+            AfterMarks: ["AddDotnetProject", "AddExecutable"]),
+        new("Schéma généré (mermaid)", null, "docs/architecture.mmd"),
+    ];
+
+    private readonly Dictionary<string, Health> _health = [];
+    private readonly CancellationTokenSource _cts = new();
+
+    private int HealthyCount => _health.Values.Count(h => h.Ok);
+    private bool AllHealthy => HealthyCount == MissionApi.Services.Length;
+
+    private string NodeCss(string name) =>
+        _health.TryGetValue(name, out var h) ? (h.Ok ? "ok" : "bad") : "";
+
+    private string NodeDot(string name) =>
+        name == "asteroid-scan" ? "#565c66" :
+        _health.TryGetValue(name, out var h) ? (h.Ok ? "#43d18a" : "#fc3d21") : "#565c66";
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender) _ = PollAsync(_cts.Token);
+    }
+
+    private async Task PollAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+        try
+        {
+            do
+            {
+                var probes = await Task.WhenAll(MissionApi.Services.Select(async s =>
+                    (Service: s, Exchange: await Api.GetAsync(s, "/health", ct))));
+                foreach (var (service, ex) in probes)
+                    _health[service] = new Health(ex.IsSuccess, ex.Elapsed.TotalMilliseconds);
+                await InvokeAsync(StateHasChanged);
+            } while (await timer.WaitForNextTickAsync(ct));
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
+    }
+}

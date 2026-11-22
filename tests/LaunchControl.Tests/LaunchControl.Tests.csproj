@@ -11,6 +11,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LaunchControl/LaunchControl.csproj" />
+    <!-- Même alias que LaunchControl : sinon CountdownSequence existe deux fois dans l'espace global. -->
+    <ProjectReference Include="../../src/LaunchControl.ClassicAsync/LaunchControl.ClassicAsync.csproj" Aliases="classicasync" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

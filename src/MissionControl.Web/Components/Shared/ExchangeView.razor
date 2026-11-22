@@ -1,0 +1,93 @@
+<section class="panel @(Framed ? "framed" : "")">
+    <header class="panel-head">
+        <span class="label label-strong">@Title</span>
+        <span class="spacer"></span>
+        @if (Busy)
+        {
+            <span class="status warn live">Transmission</span>
+        }
+        else if (Exchange is { Error: not null })
+        {
+            <span class="status bad">Pas de liaison</span>
+        }
+        else if (Exchange is not null)
+        {
+            <span class="status @(Exchange.IsSuccess ? "ok" : "warn")">Réponse reçue</span>
+        }
+        else
+        {
+            <span class="status idle">En attente</span>
+        }
+    </header>
+    <div class="exchange">
+        <div>
+            <div class="ex-head">
+                <span class="label">Requête</span>
+                @if (Exchange is not null)
+                {
+                    <span class="ex-method">@Exchange.Method</span>
+                    <span class="ex-url">@Exchange.Url</span>
+                }
+            </div>
+            @if (Exchange is { RequestHeaders.Count: > 0 })
+            {
+                <div class="ex-headers">
+                    @foreach (var (name, value) in Exchange.RequestHeaders)
+                    {
+                        <div>@name: <span>@value</span></div>
+                    }
+                </div>
+            }
+            @if (Exchange?.RequestBody is { } body)
+            {
+                <pre class="code-block">@((MarkupString)JsonHighlighter.ToHtml(body))</pre>
+            }
+            else
+            {
+                <pre class="code-block empty">@(Exchange is null ? "Aucune commande envoyée." : "(sans corps)")</pre>
+            }
+        </div>
+        <div>
+            <div class="ex-head">
+                <span class="label">Réponse</span>
+                @if (Exchange is { Status: { } status })
+                {
+                    <span class="badge @StatusClass(status)">@status @Exchange.Reason</span>
+                    <span class="ex-meta">@Exchange.Elapsed.TotalMilliseconds.ToString("0") ms</span>
+                    @if (Exchange.ContentType is { } ct)
+                    {
+                        <span class="ex-meta">@ct</span>
+                    }
+                }
+            </div>
+            @if (Exchange?.Error is { } error)
+            {
+                <pre class="code-block" style="color: var(--red)">@error</pre>
+            }
+            else if (!string.IsNullOrEmpty(Exchange?.ResponseBody))
+            {
+                <pre class="code-block">@((MarkupString)JsonHighlighter.ToHtml(Exchange.ResponseBody))</pre>
+            }
+            else
+            {
+                <pre class="code-block empty">@(Exchange is null ? "—" : "(sans corps)")</pre>
+            }
+        </div>
+    </div>
+    @ChildContent
+</section>
+
+@code {
+    [Parameter] public Exchange? Exchange { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public bool Framed { get; set; }
+    [Parameter] public string Title { get; set; } = "Liaison HTTP";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private static string StatusClass(int status) => status switch
+    {
+        >= 200 and < 300 => "ok",
+        >= 400 and < 500 => "warn",
+        _ => "bad",
+    };
+}

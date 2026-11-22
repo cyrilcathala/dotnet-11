@@ -5,5 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="../MissionControl.Contracts/MissionControl.Contracts.csproj" />
     <ProjectReference Include="../MissionControl.ServiceDefaults/MissionControl.ServiceDefaults.csproj" />
+    <!-- Même source, compilée sans runtime async : GET /diagnostics/countdown-stack?runtimeAsync=false -->
+    <ProjectReference Include="../LaunchControl.ClassicAsync/LaunchControl.ClassicAsync.csproj" Aliases="classicasync" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Le même CountdownSequence.cs que LaunchControl, compilé ici SANS runtime async (pas de <Features>).
+       LaunchControl référence cette assembly sous l'alias « classicasync » : les deux variantes vivent
+       dans le même processus et se comparent en direct, sans recompiler. -->
+  <ItemGroup>
+    <Compile Include="../LaunchControl/CountdownSequence.cs" Link="CountdownSequence.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,253 @@
+@page "/lancement"
+@inject MissionApi Api
+@inject MissionState State
+
+<StepHeader Step="Step" />
+
+<div class="grid grid-2">
+    <Panel Title="Décision de lancement · Kourou" Framed>
+        <Actions>
+            <span class="label">POST /launches</span>
+        </Actions>
+        <ChildContent>
+            <div class="verdict">
+                @switch (_phase)
+                {
+                    case Phase.Idle:
+                        <span class="verdict-word idle">GO / NO-GO</span>
+                        <span class="label">Sonde @State.Probe sur le pas de tir</span>
+                        break;
+                    case Phase.Polling:
+                        <span class="verdict-word idle">PRÉFLIGHT</span>
+                        <span class="status warn live">preflight.cs en cours · compilation au premier appel</span>
+                        break;
+                    case Phase.NoGo:
+                        <span class="verdict-word nogo">NO-GO</span>
+                        <span class="label">409 Conflict · lancement suspendu</span>
+                        break;
+                    case Phase.Countdown:
+                        <span class="verdict-word count">T−@_count</span>
+                        <span class="status ok">Préflight GO · séquence terminale</span>
+                        break;
+                    case Phase.Liftoff:
+                        <span class="verdict-word go">DÉCOLLAGE</span>
+                        <span class="label">200 OK · le vol démarre, la télémétrie suit</span>
+                        break;
+                    case Phase.Failed:
+                        <span class="verdict-word nogo" style="font-size: 54px">@(_exchange?.Status?.ToString() ?? "HORS LIGNE")</span>
+                        <span class="label">@(_exchange?.Status == 404 ? "Sonde inconnue : la construire à l'étape 01" : _exchange?.Error ?? _exchange?.Reason)</span>
+                        break;
+                }
+            </div>
+            <div class="grid grid-2 mt">
+                <button class="btn btn-danger" disabled="@Busy" @onclick="() => LaunchAsync(true)">2.1 · Tenter sous orage</button>
+                <button class="btn btn-primary" disabled="@Busy" @onclick="() => LaunchAsync(false)">2.2 · Lancement nominal</button>
+            </div>
+        </ChildContent>
+    </Panel>
+
+    <Panel Title="Station météo · tools/preflight.cs" Flush>
+        <Actions>
+            <span class="label">Process.RunAndCaptureTextAsync</span>
+        </Actions>
+        <ChildContent>
+<pre class="console"><span class="prompt">$</span> dotnet run -e LAUNCH_SITE=Kourou -e PROBE=@State.Probe -e FORCE_STORM=@(_storm ? "True" : "False") --file preflight.cs
+@if (_weather is not null)
+{
+@foreach (var line in _weather.Split('\n'))
+{
+<span class="@(line.Trim() is "NO-GO" ? "err" : line.Trim() is "GO" ? "prompt" : "")">@line</span>@("\n")
+}
+<span class="@(_phase == Phase.NoGo ? "err" : "prompt")">code de sortie @(_phase == Phase.NoGo ? 1 : 0)</span>
+}
+else if (_phase == Phase.Polling)
+{
+<span style="color: var(--muted)">…</span>
+}</pre>
+        </ChildContent>
+    </Panel>
+</div>
+
+<div class="mt">
+    <ExchangeView Exchange="_exchange" Busy="_phase == Phase.Polling" Title="Liaison LaunchControl" />
+</div>
+
+<section class="panel framed mt">
+    <header class="panel-head">
+        <span class="label label-strong">Pile live du compte à rebours · même source, deux compilations</span>
+        <span class="spacer"></span>
+        <span class="label">GET /diagnostics/countdown-stack?runtimeAsync=…</span>
+        <button class="btn btn-sm btn-primary" disabled="@_stackBusy" @onclick="CaptureAsync">2.3 · Capturer les deux</button>
+    </header>
+
+    <div class="stack-compare">
+        @foreach (var variant in new[] { _without, _with })
+        {
+            <div class="stack-col">
+                <div class="stack-head">
+                    <div>
+                        <div class="label @(variant.RuntimeAsync ? "label-strong" : "")">@(variant.RuntimeAsync ? "Avec runtime async" : "Sans runtime async")</div>
+                        <div class="stack-asm">@(variant.RuntimeAsync ? "LaunchControl.dll · <Features>runtime-async=on</Features>" : "LaunchControl.ClassicAsync.dll · compilation classique")</div>
+                    </div>
+                    <div class="stack-frames">
+                        <span class="verdict-word @(variant.RuntimeAsync ? "go" : "count")" style="font-size: 72px">@(variant.Frames?.ToString() ?? "—")</span>
+                        <span class="label">frames</span>
+                    </div>
+                </div>
+                @if (variant.Error is { } error)
+                {
+                    <pre class="code-block" style="color: var(--red)">@error</pre>
+                }
+                else if (variant.Stack is null)
+                {
+                    <pre class="code-block empty">Pile non capturée.</pre>
+                }
+                else
+                {
+                    <pre class="code" style="max-height: 420px">@foreach (var line in Lines(variant.Stack))
+{<span class="ln @LineCss(line)">@line</span>}</pre>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="panel-body" style="border-top: 1px solid var(--line)">
+        <div class="grid grid-2" style="align-items: center">
+            <div class="bars">
+                @foreach (var variant in new[] { _without, _with })
+                {
+                    <div class="bar-row">
+                        <span class="bar-name">@(variant.RuntimeAsync ? "runtime-async=on" : "classique")</span>
+                        <span class="bar-track"><span class="bar-fill @(variant.RuntimeAsync ? "lead" : "")" style="width: @BarWidth(variant.Frames)"></span></span>
+                        <span class="bar-value">@(variant.Frames?.ToString() ?? "—") frames</span>
+                    </div>
+                }
+            </div>
+            <div class="note">
+                @if (_without.Frames is { } a && _with.Frames is { } b && a > 0)
+                {
+                    <span style="font-size: 22px; color: var(--text)">−@(a - b) frames</span>
+                    <span> · @(((a - b) * 100.0 / a).ToString("0"))&nbsp;% de pile en moins</span>
+                    <br />
+                }
+                <span class="legend-old"></span> frames de machinerie async (MoveNext, builders, ExecutionContext)
+            </div>
+        </div>
+        <div class="caveat mt">
+            <strong>Même fichier, même processus, même .NET 11.</strong>
+            <code class="inline-code">CountdownSequence.cs</code> est compilé deux fois : dans LaunchControl (runtime async) et dans
+            LaunchControl.ClassicAsync (sans), chargé sous l'alias <code class="inline-code">classicasync</code>.
+            Seules les piles live changent (débogueur, profileur, <code class="inline-code">StackTrace</code>) ;
+            les stack traces d'exception étaient déjà propres.
+        </div>
+    </div>
+</section>
+
+<div class="mt">
+    <CodeCompare Title="Lancement · .NET 10 face à .NET 11" Pairs="Code" />
+</div>
+
+<StepNav Step="Step" />
+
+@code {
+    private static readonly MissionStep Step = Mission.ByNumber(2);
+
+    private enum Phase { Idle, Polling, NoGo, Countdown, Liftoff, Failed }
+
+    private static readonly CodePair[] Code =
+    [
+        new("Lancer l'outil", "compare/net10/Compare.Net10/LaunchControl/PreflightRunner.cs", "src/LaunchControl/PreflightRunner.cs",
+            ["ArgumentList", "Environment[", "ReadToEndAsync", "WaitForExitAsync", "Process.Start"],
+            ["RunAndCaptureTextAsync", "\"-e\"", "ExitStatus"]),
+        new("preflight.cs", null, "tools/preflight.cs", AfterMarks: ["GetEnvironmentVariable", "return storm"]),
+        new("Runtime async · le code mesuré", null, "src/LaunchControl/CountdownSequence.cs",
+            AfterMarks: ["async Task<string>", "new StackTrace"]),
+        new("Runtime async · deux compilations", "src/LaunchControl.ClassicAsync/LaunchControl.ClassicAsync.csproj", "src/LaunchControl/LaunchControl.csproj",
+            ["Compile Include"], ["runtime-async", "classicasync"], BeforeLabel: "Sans", AfterLabel: "Avec"),
+        new("Runtime async · l'endpoint", null, "src/LaunchControl/Program.cs",
+            AfterMarks: ["extern alias", "classicasync::", "runtimeAsync"]),
+    ];
+
+    private Phase _phase;
+    private bool _storm;
+    private int _count;
+    private string? _weather;
+    private Exchange? _exchange;
+
+    private sealed class StackCapture(bool runtimeAsync)
+    {
+        public bool RuntimeAsync { get; } = runtimeAsync;
+        public int? Frames { get; set; }
+        public string? Stack { get; set; }
+        public string? Error { get; set; }
+    }
+
+    private readonly StackCapture _without = new(false);
+    private readonly StackCapture _with = new(true);
+    private bool _stackBusy;
+
+    // Le chemin complet du fichier source rend les lignes illisibles sur scène : on garde « Fichier.cs:line N ».
+    private static IEnumerable<string> Lines(string stack) => stack.TrimEnd().Split('\n')
+        .Select(l => System.Text.RegularExpressions.Regex.Replace(l.TrimEnd(), @" in .*[\\/]([^\\/]+:line \d+)$", " in $1"));
+
+    private static string LineCss(string line) =>
+        line.Contains("MoveNext") || line.Contains("MethodBuilder") || line.Contains("StateMachineBox")
+            || line.Contains("ExecutionContext") ? "hl-old"
+        : line.Contains("CountdownSequence") ? "hl" : "";
+
+    private string BarWidth(int? frames)
+    {
+        var max = Math.Max(_without.Frames ?? 0, _with.Frames ?? 0);
+        var pct = frames is { } f && max > 0 ? f * 100.0 / max : 0;
+        return pct.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%";
+    }
+
+    private bool Busy => _phase is Phase.Polling or Phase.Countdown;
+
+    private async Task LaunchAsync(bool storm)
+    {
+        _storm = storm;
+        _weather = null;
+        _phase = Phase.Polling;
+        var path = storm ? "/launches?forceStorm=true" : "/launches";
+        _exchange = await Api.PostAsync(MissionApi.LaunchControl, path, new { probeName = State.Probe });
+        _weather = _exchange.Json?["weather"]?.GetValue<string>();
+
+        switch (_exchange.Status)
+        {
+            case 409:
+                _phase = Phase.NoGo;
+                break;
+            case 200:
+                // Le vol est déjà parti côté serveur : le compte à rebours est une mise en scène de 3 s.
+                _phase = Phase.Countdown;
+                for (_count = 3; _count > 0; _count--)
+                {
+                    StateHasChanged();
+                    await Task.Delay(1000);
+                }
+                _phase = Phase.Liftoff;
+                State.MarkLiftoff();
+                break;
+            default:
+                _phase = Phase.Failed;
+                break;
+        }
+    }
+
+    private async Task CaptureAsync()
+    {
+        _stackBusy = true;
+        await Task.WhenAll(CaptureAsync(_without), CaptureAsync(_with));
+        _stackBusy = false;
+    }
+
+    private async Task CaptureAsync(StackCapture capture)
+    {
+        var ex = await Api.GetAsync(MissionApi.LaunchControl,
+            $"/diagnostics/countdown-stack?runtimeAsync={(capture.RuntimeAsync ? "true" : "false")}");
+        capture.Frames = ex.Json?["frames"]?.GetValue<int>();
+        capture.Stack = ex.Json?["stack"]?.GetValue<string>();
+        capture.Error = ex.Error ?? (ex.IsSuccess ? null : $"{ex.Status} {ex.Reason}");
+    }
+}

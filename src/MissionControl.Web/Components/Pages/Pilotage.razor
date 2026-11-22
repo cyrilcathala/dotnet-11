@@ -1,0 +1,155 @@
+@page "/pilotage"
+@inject MissionApi Api
+@inject MissionState State
+
+<StepHeader Step="Step" />
+
+<div class="grid grid-side">
+    <div class="stack">
+        <Panel Title="Scénarios du runbook" Flush>
+            @foreach (var s in Scenarios)
+            {
+                <button class="scenario" disabled="@_busy" @onclick="() => SendAsync(s.Type, s.Value)">
+                    <span class="scenario-id">@s.Id</span>
+                    <span>
+                        <span class="scenario-title">@s.Title</span>
+                        <div class="scenario-hint">@s.Hint</div>
+                    </span>
+                    <span class="scenario-expect">@s.Expect</span>
+                </button>
+            }
+        </Panel>
+
+        <Panel Title="Console de commande">
+            <div class="cmd-grid">
+                @foreach (var c in CommandTypes)
+                {
+                    <button class="cmd @(_type == c.Type ? "on" : "")" @onclick="() => _type = c.Type">
+                        <span class="cmd-name">@c.Record</span>
+                        <span class="cmd-type">@c.Type</span>
+                    </button>
+                }
+            </div>
+            @if (_type is "thrust" or "rotate")
+            {
+                <div class="field mt">
+                    <label class="label" for="value">@(_type == "thrust" ? "DeltaV (km/s)" : "Degrees")</label>
+                    <input id="value" class="input" type="number" step="0.5" @bind="_value" />
+                </div>
+            }
+            @if (_type == "self-destruct")
+            {
+                <div class="caveat mt"><strong>Irréversible.</strong> Réservé à l'étape 06 · Incident.</div>
+            }
+            <button class="btn btn-primary btn-block mt" disabled="@(_busy || _type == "self-destruct")" @onclick="() => SendAsync(_type, _value)">
+                Transmettre à @State.Probe
+            </button>
+        </Panel>
+    </div>
+
+    <div class="stack">
+        <Panel Title="CommandResult" Framed>
+            <Actions><span class="label">POST /commands</span></Actions>
+            <ChildContent>
+                <OutcomeBanner Exchange="_exchange" />
+            </ChildContent>
+        </Panel>
+        <ExchangeView Exchange="_exchange" Busy="_busy" Title="Liaison MissionControl" />
+    </div>
+</div>
+
+<div class="grid grid-2 mt">
+    <HistoryStream @ref="_history" />
+
+    <Panel Title="OpenAPI · réponse de POST /commands" Flush>
+        <Actions>
+            <button class="btn btn-sm" @onclick="LoadOpenApiAsync">5.5 · Lire /openapi/v1.json</button>
+        </Actions>
+        <ChildContent>
+            @if (_schema is null)
+            {
+                <pre class="code-block empty">Document non chargé.</pre>
+            }
+            else
+            {
+                <pre class="code-block">@((MarkupString)JsonHighlighter.ToHtml(_schema))</pre>
+            }
+        </ChildContent>
+    </Panel>
+</div>
+
+<div class="mt">
+    <CodeCompare Title="Commandes et résultats · .NET 10 face à .NET 11" Pairs="Code" />
+</div>
+
+<StepNav Step="Step" />
+
+@code {
+    private static readonly MissionStep Step = Mission.ByNumber(5);
+
+    private record Scenario(string Id, string Title, string Hint, string Type, double? Value, string Expect);
+    private record CommandType(string Type, string Record);
+
+    private static readonly Scenario[] Scenarios =
+    [
+        new("5.1", "Poussée", "thrust · deltaV = 2.5", "thrust", 2.5, "Acknowledged"),
+        new("5.2", "Poussée invalide", "thrust · deltaV = −1", "thrust", -1, "Rejected"),
+        new("5.3", "Rotation", "rotate · degrees = 90", "rotate", 90, "Acknowledged"),
+        new("—", "Photo", "capture-photo", "capture-photo", null, "Acknowledged"),
+    ];
+
+    private static readonly CommandType[] CommandTypes =
+    [
+        new("thrust", "Thrust"),
+        new("rotate", "Rotate"),
+        new("capture-photo", "CapturePhoto"),
+        new("self-destruct", "SelfDestruct"),
+    ];
+
+    private static readonly CodePair[] Code =
+    [
+        new("closed record", "compare/net10/Compare.Net10/MissionControl/ProbeCommand.cs", "src/MissionControl.Api/ProbeCommand.cs",
+            ["abstract record"], ["closed record"]),
+        new("Switch exhaustif", "compare/net10/Compare.Net10/MissionControl/ProbeCommand.cs", "src/MissionControl.Api/CommandDispatcher.cs",
+            ["default", "throw"], ["Thrust t =>", "Rotate r =>", "CapturePhoto c =>", "SelfDestruct s =>", "Acknowledged =>", "ProbeLost =>"]),
+        new("union", "compare/net10/Compare.Net10/MissionControl/CommandResult.cs", "src/MissionControl.Api/CommandResult.cs",
+            ["abstract record", ": CommandResult"], ["union CommandResult"]),
+        new("JSONL", "compare/net10/Compare.Net10/MissionControl/CommandHistoryEndpoint.cs", "src/MissionControl.Api/Program.cs",
+            ["WriteAsync", "'\\n'", "\\n"], ["SerializeAsyncEnumerable", "topLevelValues", "application/jsonl"]),
+        new("OpenTelemetry natif", null, "src/MissionControl.ServiceDefaults/Extensions.cs",
+            AfterMarks: ["AddSource(\"Microsoft.AspNetCore\")", "Pas de package"]),
+    ];
+
+    private string _type = "thrust";
+    private double? _value = 2.5;
+    private bool _busy;
+    private Exchange? _exchange;
+    private HistoryStream? _history;
+    private string? _schema;
+
+    private async Task SendAsync(string type, double? value)
+    {
+        _busy = true;
+        _exchange = await Api.PostAsync(MissionApi.MissionControl, "/commands", Commands.Build(type, State.Probe, value));
+        _busy = false;
+        if (_history is not null) await _history.LoadAsync();
+    }
+
+    private async Task LoadOpenApiAsync()
+    {
+        var ex = await Api.GetAsync(MissionApi.MissionControl, "/openapi/v1.json");
+        if (ex.Json is not { } doc)
+        {
+            _schema = ex.Error ?? $"{ex.Status} {ex.Reason}";
+            return;
+        }
+        var schema = doc["paths"]?["/commands"]?["post"]?["responses"]?["200"]?["content"]?["application/json"]?["schema"];
+        // On résout la référence pour montrer l'anyOf sans fouiller le document.
+        if (schema?["$ref"]?.GetValue<string>() is { } reference)
+        {
+            var name = reference.Split('/').Last();
+            schema = new JsonObject { [name] = doc["components"]?["schemas"]?[name]?.DeepClone() };
+        }
+        _schema = schema?.ToJsonString(MissionApi.Pretty) ?? "Schéma introuvable.";
+    }
+}

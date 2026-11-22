@@ -1,0 +1,96 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Nav
+@inject MissionState State
+
+<header class="topbar">
+    <a class="wordmark" href="">
+        <svg class="wordmark-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <circle cx="16" cy="16" r="9" fill="none" stroke="currentColor" stroke-width="1.4" />
+            <ellipse cx="16" cy="16" rx="15" ry="5.5" fill="none" stroke="#fc3d21" stroke-width="1.4" transform="rotate(-24 16 16)" />
+            <circle cx="27.5" cy="10.6" r="1.8" fill="currentColor" />
+        </svg>
+        <span class="wordmark-name">MISSION CONTROL</span>
+        <span class="wordmark-sub">.NET 11 · ASPIRE 17</span>
+    </a>
+
+    <div class="topbar-center">
+        @if (_current is { } current)
+        {
+            <span class="label">Étape @current.Number.ToString("00")</span>
+            <span class="label label-strong">@current.Phase</span>
+        }
+        else
+        {
+            <span class="label">Briefing de mission</span>
+        }
+    </div>
+
+    <div class="topbar-right">
+        <label class="probe-chip" title="Sonde utilisée par toutes les étapes">
+            <span class="label">Sonde</span>
+            <input value="@State.Probe" @onchange="e => State.Probe = e.Value?.ToString() ?? State.Probe" spellcheck="false" />
+        </label>
+        <MissionClock />
+    </div>
+</header>
+
+<nav class="timeline" aria-label="Déroulé de la mission">
+    <div class="timeline-progress" style="width: calc((100% - 2 * var(--gutter)) * @Progress)"></div>
+    @foreach (var step in Mission.Steps)
+    {
+        var css = _current is null ? "" : step.Number < _current.Number ? "done" : step.Number == _current.Number ? "current" : "";
+        <a class="tl-node @css" href="@step.Route">
+            <span class="tl-dot"></span>
+            <span class="tl-text">
+                <span class="tl-num">@step.Number.ToString("00")</span>
+                <span class="tl-name">@step.Phase</span>
+            </span>
+        </a>
+    }
+</nav>
+
+<main class="page">
+    @Body
+</main>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Anomalie dans la console.
+    <a href="." class="reload">Recharger</a>
+    <span class="dismiss">✕</span>
+</div>
+
+@code {
+    private MissionStep? _current;
+
+    // Fraction de la frise parcourue : du premier nœud au nœud courant (8 nœuds, 7 intervalles).
+    private string Progress => (_current is null ? 0 : _current.Number / 8.0)
+        .ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+        State.Changed += OnStateChanged;
+        Resolve();
+    }
+
+    private void Resolve()
+    {
+        var path = Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Trim('/');
+        _current = Mission.Steps.FirstOrDefault(s => s.Route == path);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        Resolve();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+        State.Changed -= OnStateChanged;
+    }
+}

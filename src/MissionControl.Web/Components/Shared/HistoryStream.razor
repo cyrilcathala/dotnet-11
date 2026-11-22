@@ -1,0 +1,115 @@
+@inject MissionApi Api
+
+<section class="panel">
+    <header class="panel-head">
+        <span class="label label-strong">Journal de bord · GET /commands/history</span>
+        <span class="spacer"></span>
+        <span class="label">application/jsonl</span>
+        <button class="btn btn-sm" @onclick="LoadAsync" disabled="@_busy">Relire le flux</button>
+    </header>
+    <div class="panel-body flush">
+        @if (_error is not null)
+        {
+            <pre class="code-block" style="color: var(--red)">@_error</pre>
+        }
+        else if (_lines.Count == 0)
+        {
+            <pre class="code-block empty">@(_busy ? "Lecture du flux…" : _loaded ? "Aucune commande dans l'historique." : "Flux non lu.")</pre>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th class="label">#</th>
+                        <th class="label">Heure UTC</th>
+                        <th class="label">Sonde</th>
+                        <th class="label">Commande</th>
+                        <th class="label">Issue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < _lines.Count; i++)
+                    {
+                        var entry = _lines[i];
+                        <tr class="@(i >= _previousCount ? "fresh" : "")">
+                            <td>@(i + 1)</td>
+                            <td>@entry.At?.ToString("HH:mm:ss")</td>
+                            <td>@entry.Probe</td>
+                            <td>@entry.Command</td>
+                            <td><span class="badge @OutcomeCss(entry.Outcome)">@entry.Outcome</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="panel-head" style="border-top: 1px solid var(--line)">
+                <span class="label">Flux brut · une valeur JSON par ligne</span>
+            </div>
+            <pre class="code-block" style="max-height: 220px">@foreach (var entry in _lines)
+{@((MarkupString)JsonHighlighter.ToHtml(entry.Raw))@("\n")}</pre>
+        }
+    </div>
+</section>
+
+@code {
+    private record Entry(string Raw, DateTimeOffset? At, string? Probe, string? Command, string? Outcome);
+
+    private readonly List<Entry> _lines = [];
+    private int _previousCount;
+    private bool _busy, _loaded;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    public async Task LoadAsync()
+    {
+        _busy = true;
+        _error = null;
+        _previousCount = _lines.Count;
+        var fresh = new List<Entry>();
+        try
+        {
+            // Chaque ligne est rendue dès qu'elle arrive : c'est tout l'intérêt du JSONL.
+            await foreach (var line in Api.StreamLinesAsync(MissionApi.MissionControl, "/commands/history"))
+            {
+                fresh.Add(Parse(line));
+                _lines.Clear();
+                _lines.AddRange(fresh);
+                StateHasChanged();
+            }
+            _lines.Clear();
+            _lines.AddRange(fresh);
+        }
+        catch (Exception e) when (e is HttpRequestException or InvalidOperationException)
+        {
+            _error = $"missioncontrol injoignable : {e.Message}";
+        }
+        _busy = false;
+        _loaded = true;
+    }
+
+    private static Entry Parse(string line)
+    {
+        try
+        {
+            var node = JsonNode.Parse(line);
+            return new Entry(line,
+                node?["at"]?.GetValue<DateTimeOffset>(),
+                node?["probeName"]?.GetValue<string>(),
+                node?["command"]?.GetValue<string>(),
+                node?["outcome"]?.GetValue<string>());
+        }
+        catch (Exception e) when (e is JsonException or InvalidOperationException or FormatException)
+        {
+            return new Entry(line, null, null, null, null);
+        }
+    }
+
+    private static string OutcomeCss(string? outcome) => outcome switch
+    {
+        "ack" => "ok",
+        "rejected" => "warn",
+        "lost" or "timeout" => "bad",
+        _ => "info",
+    };
+}

@@ -1,0 +1,159 @@
+@page "/fabrication"
+@inject MissionApi Api
+@inject MissionState State
+
+<StepHeader Step="Step" />
+
+<div class="grid grid-side">
+    <div class="stack">
+        <Panel Title="Scénarios du runbook" Flush>
+            @foreach (var s in Scenarios)
+            {
+                <button class="scenario" disabled="@_busy" @onclick="() => RunAsync(s)">
+                    <span class="scenario-id">@s.Id</span>
+                    <span>
+                        <span class="scenario-title">@s.Title</span>
+                        <div class="scenario-hint">@s.Hint(State.Probe)</div>
+                    </span>
+                    <span class="scenario-expect">@s.Expect</span>
+                </button>
+            }
+        </Panel>
+
+        <Panel Title="Bon de fabrication">
+            <div class="field">
+                <label class="label" for="name">Nom de la sonde</label>
+                <input id="name" class="input" @bind="_name" @bind:event="oninput" spellcheck="false" />
+            </div>
+            <div class="field">
+                <label class="label" for="kind">Type</label>
+                <select id="kind" class="select" @bind="_kind">
+                    <option>Orbiter</option>
+                    <option>Lander</option>
+                    <option>Rover</option>
+                </select>
+            </div>
+            <div class="field">
+                <span class="label">Accept-Language</span>
+                <div class="segmented">
+                    <button class="@(_lang == "fr" ? "on" : "")" @onclick='() => _lang = "fr"'>Français</button>
+                    <button class="@(_lang == "en" ? "on" : "")" @onclick='() => _lang = "en"'>English</button>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-block mt" disabled="@_busy" @onclick="SubmitAsync">Envoyer à ProbeFactory</button>
+        </Panel>
+    </div>
+
+    <div class="stack">
+        <Panel Title="Contrôle qualité" Framed>
+            <Actions>
+                @if (_exchange?.Status is 201)
+                {
+                    <span class="status ok">Sonde homologuée</span>
+                }
+                else if (_exchange?.Status is 400)
+                {
+                    <span class="status warn">Refus de validation</span>
+                }
+            </Actions>
+            <ChildContent>
+                @if (_exchange is null)
+                {
+                    <div class="verdict"><span class="verdict-word idle">EN ATTENTE</span><span class="label">Aucun bon de fabrication soumis</span></div>
+                }
+                else if (_exchange.Status is 201 && _exchange.Json is { } probe)
+                {
+                    <div class="grid grid-3">
+                        <div><div class="label">Nom</div><div class="readout-value mono">@probe["name"]</div></div>
+                        <div><div class="label">Type</div><div class="readout-value">@probe["kind"]</div></div>
+                        <div><div class="label">Créée à</div><div class="readout-value small mono">@(probe["createdAt"]?.GetValue<DateTimeOffset>().ToString("HH:mm:ss.fff"))</div></div>
+                    </div>
+                }
+                else if (_exchange.Status is 400 && _exchange.Json?["errors"] is JsonObject errors)
+                {
+                    <div class="stack" style="gap: 10px">
+                        @foreach (var (field, messages) in errors)
+                        {
+                            foreach (var message in messages?.AsArray() ?? [])
+                            {
+                                <div class="row" style="gap: 14px">
+                                    <span class="badge warn">@field</span>
+                                    <span style="font-size: 22px">« @message »</span>
+                                </div>
+                            }
+                        }
+                        <div class="note mt">
+                            Langue demandée : <code>@_sentLang</code>. Le message vient de
+                            <code>Resources/ValidationMessages@(_sentLang == "fr" ? ".fr" : "").resx</code>, avant même l'appel de l'endpoint.
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="verdict"><span class="verdict-word nogo" style="font-size: 48px">@(_exchange.Status?.ToString() ?? "HORS LIGNE")</span><span class="label">@(_exchange.Error ?? _exchange.Reason)</span></div>
+                }
+            </ChildContent>
+        </Panel>
+
+        <ExchangeView Exchange="_exchange" Busy="_busy" Title="Liaison ProbeFactory" />
+    </div>
+</div>
+
+<div class="mt">
+    <CodeCompare Title="Validation · .NET 10 face à .NET 11" Pairs="Code" />
+</div>
+
+<StepNav Step="Step" />
+
+@code {
+    private static readonly MissionStep Step = Mission.ByNumber(1);
+
+    private record Scenario(string Id, string Title, Func<string, string> Hint, string Expect, Func<string, string> Name, string Kind, string? Lang);
+
+    private static readonly Scenario[] Scenarios =
+    [
+        new("1.1", "Créer la sonde", p => $"name = {p}", "201", p => p, "Orbiter", null),
+        new("1.2", "Nom trop court, en français", _ => "name = ab · Accept-Language: fr", "400", _ => "ab", "Rover", "fr"),
+        new("1.3", "La même, en anglais", _ => "name = ab · Accept-Language: en", "400", _ => "ab", "Rover", "en"),
+        new("1.4", "Nom déjà pris", p => $"name = {p} · validation asynchrone", "400", p => p, "Orbiter", "fr"),
+        new("1.5", "Nom réservé", _ => "name = voyager · with(StringComparer.OrdinalIgnoreCase)", "400", _ => "voyager", "Orbiter", "fr"),
+    ];
+
+    private static readonly CodePair[] Code =
+    [
+        new("Requête et attributs", "compare/net10/Compare.Net10/ProbeFactory/CreateProbeEndpoint.cs", "src/ProbeFactory/CreateProbeRequest.cs",
+            ["ErrorMessageResourceType", "IsTakenAsync", "ValidationProblem"], ["UniqueProbeName", "StringLength"]),
+        new("Unicité asynchrone", "compare/net10/Compare.Net10/ProbeFactory/CreateProbeEndpoint.cs", "src/ProbeFactory/UniqueProbeNameAttribute.cs",
+            ["IsTakenAsync", "ValidationProblem"], ["AsyncValidationAttribute", "IsValidAsync"]),
+        new("Localisation", null, "src/ProbeFactory/Program.cs",
+            AfterMarks: ["AddLocalization", "AddValidation", "LocalizerProvider", "UseRequestLocalization"]),
+        new("Collection expressions", "compare/net10/Compare.Net10/ProbeFactory/ProbeRegistry.cs", "src/ProbeFactory/ProbeRegistry.cs",
+            ["_reserved ="], ["with(StringComparer"]),
+    ];
+
+    private string _name = "";
+    private string _kind = "Orbiter";
+    private string _lang = "fr";
+    private string? _sentLang;
+    private bool _busy;
+    private Exchange? _exchange;
+
+    protected override void OnInitialized() => _name = State.Probe;
+
+    private Task RunAsync(Scenario s)
+    {
+        _name = s.Name(State.Probe);
+        _kind = s.Kind;
+        if (s.Lang is not null) _lang = s.Lang;
+        return SubmitAsync();
+    }
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _sentLang = _lang;
+        _exchange = await Api.PostAsync(MissionApi.ProbeFactory, "/probes", new { name = _name, kind = _kind },
+            [new("Accept-Language", _lang)]);
+        _busy = false;
+    }
+}

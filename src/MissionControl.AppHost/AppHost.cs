@@ -22,11 +22,23 @@ var missioncontrol = builder.AddDotnetProject("missioncontrol", "../MissionContr
     .WithHttpEndpoint()
     .WithReference(probesimulator);
 
-builder.AddDotnetProject("mcp", "../MissionControl.Mcp/MissionControl.Mcp.csproj")
+var mcp = builder.AddDotnetProject("mcp", "../MissionControl.Mcp/MissionControl.Mcp.csproj")
     .WithReference(launchcontrol)
     .WithReference(missioncontrol)
     .WithReference(telemetryreceiver);
 
 builder.AddExecutable("asteroid-scan", "dotnet", toolsDirectory, "run", "--file", "asteroid-scan.cs");
+
+// Console de démonstration (Blazor) : une page par étape, appelle chaque service et lit les sources du dépôt.
+builder.AddDotnetProject("console", "../MissionControl.Web/MissionControl.Web.csproj")
+    .WithHttpEndpoint()
+    .WithExternalHttpEndpoints()
+    .WithReference(probefactory)
+    .WithReference(launchcontrol)
+    .WithReference(probesimulator)
+    .WithReference(telemetryreceiver)
+    .WithReference(missioncontrol)
+    .WithReference(mcp)
+    .WithEnvironment("Console__RepoRoot", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "../..")));
 
 builder.Build().Run();

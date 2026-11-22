@@ -1,0 +1,18 @@
+<button class="expand-btn" @onclick="OnClick" title="@(Expanded ? "Revenir à la vue côte à côte" : "Afficher sur toute la largeur")"
+        aria-label="@(Expanded ? "Revenir à la vue côte à côte" : "Afficher sur toute la largeur")">
+    @if (Expanded)
+    {
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4" /></svg>
+        <span>Côte à côte</span>
+    }
+    else
+    {
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" /></svg>
+        <span>Plein écran</span>
+    }
+</button>
+
+@code {
+    [Parameter] public bool Expanded { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+}

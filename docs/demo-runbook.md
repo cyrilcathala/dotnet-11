@@ -4,12 +4,16 @@ Script du présentateur. Ordre : étapes 0 à 7 de la spec (`docs/superpowers/sp
 
 ## Avant de monter sur scène
 
-1. `dotnet test MissionControl.slnx` (76 tests, dont la mission complète de bout en bout) et `dotnet build compare/net10` doivent être verts.
+1. `dotnet test MissionControl.slnx` (77 tests, dont la mission complète de bout en bout) et `dotnet build compare/net10` doivent être verts.
 2. Lancer l'AppHost : `dotnet run --project src/MissionControl.AppHost --launch-profile https`. Le profil `http` échoue (Aspire exige `ASPIRE_ALLOW_UNSECURED_TRANSPORT`). Le dashboard est sur `https://localhost:17115` (le jeton de connexion est dans la sortie).
 3. Relever les ports : `aspire describe --format Table`. Les ports des services sont dynamiques ; les reporter en tête de `docs/demo.http`. MCP est fixe : http 6277, https 5085.
 4. Les données sont en mémoire : après un déroulé complet (étape 6), redémarrer l'AppHost pour rejouer (sinon « nom déjà pris »).
 5. Tag de retour à un état connu : `git checkout demo-ready` (un seul tag : le code n'est pas découpé par étape, huit tags identiques auraient induit en erreur).
 6. Pré-compiler pour éviter l'attente : un premier `dotnet run --file tools/preflight.cs` et `dotnet run --file tools/asteroid-scan.cs`. Le premier lancement de `preflight.cs` compile le fichier et prend quelques secondes.
+
+## Console visuelle (Blazor)
+
+La ressource `console` de l'AppHost (`src/MissionControl.Web`) sert http://localhost:5194 : une page par étape, avec les scénarios de `docs/demo.http` en boutons, la réponse HTTP affichée en direct, la télémétrie live (jauges, perte de signal à l'étape 6) et les sources .NET 10 et .NET 11 côte à côte, lues dans le dépôt au moment de l'affichage. Les flèches ← → (ou une télécommande de présentation) passent d'une étape à l'autre. La sonde courante se change en haut à droite (`Pioneer-13` pour l'étape 7). La séquence d'agent de l'étape 7 est un plan B scripté : elle passe par les mêmes appels JSON-RPC, mais aucun modèle n'intervient.
 
 ## Étape 0 : préparation et AppHost
 
@@ -31,7 +35,7 @@ Script du présentateur. Ordre : étapes 0 à 7 de la spec (`docs/superpowers/sp
 
 - **Requêtes** : `docs/demo.http` 2.1 (orage, 409), 2.2 (GO, 200), 2.3 (pile du compte à rebours). `preflight.cs` seul, en direct : `dotnet run -e FORCE_STORM=true -e LAUNCH_SITE=Kourou --file tools/preflight.cs` (code de sortie 1, `NO-GO`).
 - **Ouvrir en split** : `compare/net10/Compare.Net10/LaunchControl/PreflightRunner.cs` | `src/LaunchControl/PreflightRunner.cs` (`Process.RunAndCaptureTextAsync`). `compare/net10/Compare.Net10/LaunchControl/CountdownSequence.cs` | `src/LaunchControl/CountdownSequence.cs`. Fichier d'outil : `tools/preflight.cs`.
-- **Runtime async (point d'exactitude)** : comparer **14 frames sans, 7 frames avec**, sur .NET 11, même endpoint ASP.NET (`GET /diagnostics/countdown-stack`). Basculer avec `<Features>runtime-async=on</Features>` dans `src/LaunchControl/LaunchControl.csproj` (le retirer pour la valeur « sans »). Les 13 frames de .NET 10 sont mesurés dans un `Main` console (`dotnet run --project compare/net10/Compare.Net10 -- countdown`) : ce n'est **pas comparable** à l'endpoint, donc ne jamais présenter 13 → 7. Seules les piles **live** (débogueur, profileur, `StackTrace`) changent ; les stack traces d'exception étaient déjà propres.
+- **Runtime async (point d'exactitude)** : comparer **14 frames sans, 7 frames avec**, sur .NET 11, même endpoint ASP.NET. Sans recompiler : `GET /diagnostics/countdown-stack?runtimeAsync=false` (14) puis `?runtimeAsync=true` (7, la valeur par défaut). Le même `src/LaunchControl/CountdownSequence.cs` est compilé deux fois : dans LaunchControl (`<Features>runtime-async=on</Features>`) et dans `src/LaunchControl.ClassicAsync` (sans), référencé sous l'`extern alias classicasync`. La console (étape 02, bouton « Capturer les deux ») affiche les deux piles côte à côte. Basculer la propriété du csproj reste possible, mais n'est plus nécessaire. Les 13 frames de .NET 10 sont mesurés dans un `Main` console (`dotnet run --project compare/net10/Compare.Net10 -- countdown`) : ce n'est **pas comparable** à l'endpoint, donc ne jamais présenter 13 → 7. Seules les piles **live** (débogueur, profileur, `StackTrace`) changent ; les stack traces d'exception étaient déjà propres.
 - **Public** : 409 puis 200 (le suspense de l'orage), puis `"frames": 7`.
 - **Plan B** : captures de la pile à 14 frames et de celle à 7 ; captures d'un `NO-GO` puis d'un `GO`.
 
@@ -96,7 +100,7 @@ Nombre de frames de `GET /diagnostics/countdown-stack` (LaunchControl, .NET 11.0
 | Avec `<Features>runtime-async=on</Features>` | 7 |
 | .NET 10.0.403, async classique (`compare/net10`, `dotnet run -- countdown`, console) | 13 |
 
-Frames = lignes de la pile commençant par `   at `. Mesuré en retirant puis remettant la propriété dans `LaunchControl.csproj`.
+Frames = lignes de la pile commençant par `   at `. Mesuré en retirant puis remettant la propriété dans `LaunchControl.csproj` ; mêmes valeurs (14 et 7) avec les deux compilations chargées dans le même processus (`?runtimeAsync=false|true`).
 
 À présenter : 14 → 7 sur .NET 11. La ligne .NET 10 vient d'un `Main` console, pas d'un endpoint ASP.NET : elle n'est pas comparable.
 

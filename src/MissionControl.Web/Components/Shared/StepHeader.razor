@@ -1,0 +1,20 @@
+<PageTitle>@Step.Number.ToString("00") · @Step.Title · Mission Control</PageTitle>
+
+<section class="step-head">
+    <div class="step-number">@Step.Number.ToString("00")</div>
+    <div>
+        <div class="label">Étape @Step.Number.ToString("00") · @Step.Phase</div>
+        <h1 class="step-title">@Step.Title</h1>
+        <div class="step-service">@Step.Service</div>
+    </div>
+    <div class="features">
+        @foreach (var feature in Step.Features)
+        {
+            <span class="feature">@feature</span>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public required MissionStep Step { get; set; }
+}

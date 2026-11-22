@@ -1,0 +1,25 @@
+<section class="panel @(Framed ? "framed" : "") @Class">
+    @if (Title is not null || Actions is not null)
+    {
+        <header class="panel-head">
+            @if (Title is not null)
+            {
+                <span class="label label-strong">@Title</span>
+            }
+            <span class="spacer"></span>
+            @Actions
+        </header>
+    }
+    <div class="panel-body @(Flush ? "flush" : "")">
+        @ChildContent
+    </div>
+</section>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public bool Flush { get; set; }
+    [Parameter] public bool Framed { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

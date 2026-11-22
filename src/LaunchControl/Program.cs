@@ -1,3 +1,4 @@
+extern alias classicasync;
 using System.Net;
 using LaunchControl;
 using MissionControl.Contracts;
@@ -6,6 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddSingleton<IPreflightRunner, PreflightRunner>();
 builder.Services.AddSingleton<CountdownSequence>();
+// La même classe, compilée sans runtime async (projet LaunchControl.ClassicAsync).
+builder.Services.AddSingleton<classicasync::LaunchControl.CountdownSequence>();
 builder.Services.AddHttpClient("probefactory", c => c.BaseAddress = new Uri("https+http://probefactory"));
 builder.Services.AddHttpClient("probesimulator", c => c.BaseAddress = new Uri("https+http://probesimulator"));
 
@@ -44,11 +47,15 @@ app.MapPost("/launches", async (LaunchRequest request, IHttpClientFactory client
     }
 });
 
-app.MapGet("/diagnostics/countdown-stack", async (CountdownSequence countdown, CancellationToken ct) =>
+// runtimeAsync=true (défaut) : le code de cette assembly ; false : le même fichier compilé sans runtime async.
+app.MapGet("/diagnostics/countdown-stack", async (CountdownSequence withRuntimeAsync,
+    classicasync::LaunchControl.CountdownSequence withoutRuntimeAsync, CancellationToken ct, bool runtimeAsync = true) =>
 {
-    var stack = await countdown.CaptureStackAsync(ct);
+    var stack = runtimeAsync
+        ? await withRuntimeAsync.CaptureStackAsync(ct)
+        : await withoutRuntimeAsync.CaptureStackAsync(ct);
     var frames = stack.Split('\n').Count(line => line.StartsWith("   at ", StringComparison.Ordinal));
-    return new CountdownStackResponse(frames, stack);
+    return new CountdownStackResponse(frames, stack, runtimeAsync);
 });
 
 app.Run();

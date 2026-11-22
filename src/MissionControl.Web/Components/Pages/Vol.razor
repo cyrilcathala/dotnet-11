@@ -1,0 +1,133 @@
+@page "/vol"
+@inject MissionState State
+
+<StepHeader Step="Step" />
+
+<TelemetryMonitor Probe="@State.Probe" />
+
+<Panel Title="Chaîne de transmission" Class="mt" Flush>
+    <div class="pipeline">
+        @foreach (var (stage, i) in Stages.Select((s, i) => (s, i)))
+        {
+            <div class="pipe-stage">
+                <span class="label">@stage.Where</span>
+                <span class="pipe-title">@stage.What</span>
+                <span class="pipe-api">@stage.Api</span>
+            </div>
+            @if (i < Stages.Length - 1)
+            {
+                <div class="pipe-link" aria-hidden="true"></div>
+            }
+        }
+    </div>
+</Panel>
+
+<div class="grid grid-2 mt">
+    <Panel Title="Compression · 1 000 trames CBOR" Framed>
+        <Actions><span class="label">BenchmarkDotNet · ShortRun</span></Actions>
+        <ChildContent>
+            <div class="label">Temps moyen</div>
+            <div class="bars mt">
+                @foreach (var b in Compression)
+                {
+                    <div class="bar-row">
+                        <span class="bar-name">@b.Name</span>
+                        <span class="bar-track"><span class="bar-fill @(b.Hero ? "lead" : "")" style="width: @Pct(b.Time, 622.0)"></span></span>
+                        <span class="bar-value">@b.Time.ToString("0.0") µs</span>
+                    </div>
+                }
+            </div>
+            <div class="label mt-lg">Taille compressée</div>
+            <div class="bars mt">
+                @foreach (var b in Compression)
+                {
+                    <div class="bar-row">
+                        <span class="bar-name">@b.Name</span>
+                        <span class="bar-track"><span class="bar-fill @(b.Hero ? "lead" : "")" style="width: @Pct(b.Size, 17240)"></span></span>
+                        <span class="bar-value">@b.Size.ToString("N0") o</span>
+                    </div>
+                }
+            </div>
+            <div class="caveat mt">
+                <strong>Réserves.</strong> GZip et Brotli à <code class="inline-code">Optimal</code>, Zstd au niveau par défaut : niveaux non équivalents.
+                L'écart Brotli / GZip est dans le bruit (3 itérations).
+            </div>
+        </ChildContent>
+    </Panel>
+
+    <Panel Title="Boîte noire · tampon du pipe en Stream" Framed>
+        <Actions><span class="label">64 Ko · 16 segments · lecture par 4 Ko</span></Actions>
+        <ChildContent>
+            <div class="grid grid-2">
+                <div>
+                    <div class="label">new MemoryStream(buffer.ToArray())</div>
+                    <div class="verdict-word count" style="font-size: 54px; margin-top: 10px">65 624 o</div>
+                    <div class="note">alloués · 2,820 µs</div>
+                </div>
+                <div>
+                    <div class="label label-strong">new ReadOnlySequenceStream(buffer)</div>
+                    <div class="verdict-word go" style="font-size: 54px; margin-top: 10px">80 o</div>
+                    <div class="note">alloués · 1,217 µs</div>
+                </div>
+            </div>
+            <div class="bars mt-lg">
+                <div class="bar-row">
+                    <span class="bar-name">MemoryStream</span>
+                    <span class="bar-track"><span class="bar-fill" style="width: 100%"></span></span>
+                    <span class="bar-value">65 624 o</span>
+                </div>
+                <div class="bar-row">
+                    <span class="bar-name">ReadOnlySequence…</span>
+                    <span class="bar-track"><span class="bar-fill lead" style="width: 0.4%; min-width: 2px"></span></span>
+                    <span class="bar-value">80 o</span>
+                </div>
+            </div>
+            <div class="note mt">Le résultat robuste du banc : <strong>820 fois moins d'allocations</strong>, sans copie du tampon du pipe.</div>
+        </ChildContent>
+    </Panel>
+</div>
+
+<div class="mt">
+    <CodeCompare Title="En vol · .NET 10 face à .NET 11" Pairs="Code" />
+</div>
+
+<StepNav Step="Step" />
+
+@code {
+    private static readonly MissionStep Step = Mission.ByNumber(3);
+
+    private record Stage(string Where, string What, string Api);
+    private record Bench(string Name, double Time, int Size, bool Hero);
+
+    private static readonly Stage[] Stages =
+    [
+        new("ProbeSimulator", "Trame toutes les 500 ms", "IAsyncEnumerable<TelemetryFrame>"),
+        new("ProbeSimulator", "Encodage CBOR", "CborWriter"),
+        new("Réseau", "Compression Zstandard", "ZstandardStream"),
+        new("TelemetryReceiver", "Décodage incrémental", "CborReader · SlideData"),
+        new("TelemetryReceiver", "Dédoublonnage", "EqualityComparer<T>.Create"),
+    ];
+
+    // Mesures reproduites de docs/demo-runbook.md (.NET 11.0.0, Ryzen 7 5800X).
+    private static readonly Bench[] Compression =
+    [
+        new("GZip", 622.0, 17240, false),
+        new("Brotli", 585.8, 14824, false),
+        new("Zstandard", 311.0, 14006, true),
+    ];
+
+    private static readonly CodePair[] Code =
+    [
+        new("Zstandard", "compare/net10/Compare.Net10/ProbeSimulator/TelemetryContent.cs", "src/ProbeSimulator/TelemetryContent.cs",
+            ["BrotliStream", "brotli."], ["ZstandardStream", "\"zstd\"", "zstd."]),
+        new("CBOR incrémental", "compare/net10/Compare.Net10/TelemetryReceiver/BufferedTelemetryDecoder.cs", "src/TelemetryReceiver/IncrementalTelemetryDecoder.cs",
+            ["ToArray", "MemoryStream"], ["SlideData", "NeedsMoreData", "CborReaderOptions", "AllowMultipleRootLevelValues", "isFinalBlock"]),
+        new("Sans copie", "compare/net10/Compare.Net10/TelemetryReceiver/IngestEndpoint.cs", "src/TelemetryReceiver/Program.cs",
+            ["new MemoryStream", "ToArray()"], ["ReadOnlySequenceStream"]),
+        new("Dédoublonnage", "compare/net10/Compare.Net10/TelemetryReceiver/PacketIdComparer.cs", "src/TelemetryReceiver/TelemetryStore.cs",
+            ["IEqualityComparer", "GetHashCode", "Equals"], ["EqualityComparer<TelemetryFrame>.Create"]),
+    ];
+
+    private static string Pct(double value, double max) =>
+        (value / max * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%";
+}
