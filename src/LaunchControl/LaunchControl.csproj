@@ -1,4 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <Features>runtime-async=on</Features>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../MissionControl.Contracts/MissionControl.Contracts.csproj" />
     <ProjectReference Include="../MissionControl.ServiceDefaults/MissionControl.ServiceDefaults.csproj" />

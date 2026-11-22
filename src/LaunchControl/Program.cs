@@ -5,6 +5,7 @@ using MissionControl.Contracts;
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddSingleton<IPreflightRunner, PreflightRunner>();
+builder.Services.AddSingleton<CountdownSequence>();
 builder.Services.AddHttpClient("probefactory", c => c.BaseAddress = new Uri("https+http://probefactory"));
 builder.Services.AddHttpClient("probesimulator", c => c.BaseAddress = new Uri("https+http://probesimulator"));
 
@@ -35,6 +36,13 @@ app.MapPost("/launches", async (LaunchRequest request, IHttpClientFactory client
         default:
             return Results.Problem(detail: "Préflight indisponible", statusCode: StatusCodes.Status503ServiceUnavailable);
     }
+});
+
+app.MapGet("/diagnostics/countdown-stack", async (CountdownSequence countdown, CancellationToken ct) =>
+{
+    var stack = await countdown.CaptureStackAsync(ct);
+    var frames = stack.Split('\n').Count(line => line.StartsWith("   at ", StringComparison.Ordinal));
+    return new CountdownStackResponse(frames, stack);
 });
 
 app.Run();
