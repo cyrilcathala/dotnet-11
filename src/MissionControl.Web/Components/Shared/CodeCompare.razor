@@ -18,6 +18,7 @@
         var pair = Pairs[_selected];
         var split = pair.Before is not null && _focus is null;
     }
+    @* @key : changer d'onglet recrée les blocs de code, qui repartent donc du haut du fichier. *@
     @* La largeur de la colonne gauche (--left) est réglée par compare.js, hors du rendu Blazor. *@
     <div class="compare @(split ? "split" : "single")">
         @if (pair.Before is { } before && _focus is null or Side.Before)
@@ -28,7 +29,7 @@
                     <span class="path" title="@before">@before</span>
                     <ExpandButton Expanded="_focus is not null" OnClick="() => Toggle(Side.Before)" />
                 </div>
-                <CodeView Path="@before" Highlight="pair.BeforeHighlight" Legacy MaxHeight="Height" />
+                <CodeView @key="_selected" Path="@before" Highlight="pair.BeforeHighlight" Legacy MaxHeight="Height" />
             </div>
         }
         @if (split)
@@ -47,7 +48,7 @@
                         <ExpandButton Expanded="_focus is not null" OnClick="() => Toggle(Side.After)" />
                     }
                 </div>
-                <CodeView Path="@pair.After" Highlight="pair.AfterHighlight" MaxHeight="Height" />
+                <CodeView @key="_selected" Path="@pair.After" Highlight="pair.AfterHighlight" MaxHeight="Height" />
             </div>
         }
     </div>
