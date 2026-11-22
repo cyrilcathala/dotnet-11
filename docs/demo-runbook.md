@@ -4,7 +4,7 @@ Script du présentateur. Ordre : étapes 0 à 7 de la spec (`docs/superpowers/sp
 
 ## Avant de monter sur scène
 
-1. `dotnet test MissionControl.slnx` (70 tests, dont la mission complète de bout en bout) et `dotnet build compare/net10` doivent être verts.
+1. `dotnet test MissionControl.slnx` (76 tests, dont la mission complète de bout en bout) et `dotnet build compare/net10` doivent être verts.
 2. Lancer l'AppHost : `dotnet run --project src/MissionControl.AppHost --launch-profile https`. Le profil `http` échoue (Aspire exige `ASPIRE_ALLOW_UNSECURED_TRANSPORT`). Le dashboard est sur `https://localhost:17115` (le jeton de connexion est dans la sortie).
 3. Relever les ports : `aspire describe --format Table`. Les ports des services sont dynamiques ; les reporter en tête de `docs/demo.http`. MCP est fixe : http 6277, https 5085.
 4. Les données sont en mémoire : après un déroulé complet (étape 6), redémarrer l'AppHost pour rejouer (sinon « nom déjà pris »).
