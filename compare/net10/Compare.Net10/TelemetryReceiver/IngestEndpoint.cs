@@ -2,7 +2,7 @@ using System.Buffers;
 
 namespace TelemetryReceiver;
 
-/// <summary>Version .NET 10 de POST /telemetry/{probe} (src/TelemetryReceiver/Program.cs).</summary>
+/// <summary>Version .NET 10 de POST /telemetry/{probe} (src/TelemetryReceiver/IngestEndpoint.cs).</summary>
 public static class IngestEndpoint
 {
     public static IEndpointRouteBuilder MapIngest(this IEndpointRouteBuilder app)
