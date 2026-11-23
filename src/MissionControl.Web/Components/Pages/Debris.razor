@@ -25,11 +25,11 @@
                     <span></span>
                     @for (var c = 0; c < _width; c++)
                     {
-                        <span class="sector-axis">@Km(c - _probe.Col)</span>
+                        <span class="sector-axis">@c</span>
                     }
                     @for (var r = 0; r < _map.Count; r++)
                     {
-                        <span class="sector-axis">@Km(r - _probe.Row)</span>
+                        <span class="sector-axis">@r</span>
                         @for (var c = 0; c < _map[r].Length; c++)
                         {
                             <span class="cell @CellCss(r, c)" title="(@r, @c)"></span>
@@ -120,8 +120,6 @@ else if (_output is not null)
             if (c >= 0) _probe = new Position(r, c);
         }
     }
-
-    private static string Km(int d) => d > 0 ? $"+{d}" : d < 0 ? $"−{-d}" : "0";
 
     private string CellCss(int r, int c)
     {

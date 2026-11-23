@@ -26,9 +26,9 @@ public static class Conjunction
     public static int? Predict(Position debris, Position probe)
     {
         var path = Path(debris);
-        for (var i = 0; i < path.Count; i++)
-            if (Math.Max(Math.Abs(path[i].Row - probe.Row), Math.Abs(path[i].Col - probe.Col)) <= 1)
-                return i + 1;
+        for (var minute = 1; minute <= HorizonMinutes; minute++)
+            if (Math.Max(Math.Abs(path[minute - 1].Row - probe.Row), Math.Abs(path[minute - 1].Col - probe.Col)) <= 1)
+                return minute;
         return null;
     }
 }

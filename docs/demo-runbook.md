@@ -4,7 +4,7 @@ Script du présentateur. Ordre : étapes 0 à 7 de la spec (`docs/superpowers/sp
 
 ## Avant de monter sur scène
 
-1. `dotnet test MissionControl.slnx` (77 tests, dont la mission complète de bout en bout) et `dotnet build compare/net10` doivent être verts.
+1. `dotnet test MissionControl.slnx` (85 tests, dont la mission complète de bout en bout) et `dotnet build compare/net10` doivent être verts.
 2. Lancer l'AppHost : `dotnet run --project src/MissionControl.AppHost --launch-profile https`. Le profil `http` échoue (Aspire exige `ASPIRE_ALLOW_UNSECURED_TRANSPORT`). Le dashboard est sur `https://localhost:17115` (le jeton de connexion est dans la sortie).
 3. Relever les ports : `aspire describe --format Table`. Les ports des services sont dynamiques ; les reporter en tête de `docs/demo.http`. MCP est fixe : http 6277, https 5085.
 4. Les données sont en mémoire : après un déroulé complet (étape 6), redémarrer l'AppHost pour rejouer (sinon « nom déjà pris »).
@@ -50,7 +50,7 @@ La ressource `console` de l'AppHost (`src/MissionControl.Web`) sert http://local
 
 ## Étape 4 : interlude, debris-scan
 
-- **Faire** : dans le dashboard, redémarrer la ressource `debris-scan` et ouvrir sa console. Secours en terminal : `dotnet run --file tools/debris-scan.cs`. Sortie attendue : `Débris en (4, 10) : conjonction dans 4 min — manœuvre d'évitement.`
+- **Faire** : dans le dashboard, redémarrer la ressource `debris-scan` et ouvrir sa console. Secours en terminal : `dotnet run --file tools/debris-scan.cs`. Sortie attendue : trois lignes « sans danger », puis `Débris en (4, 10) : conjonction dans 4 min — manœuvre d'évitement.`
 - **Ouvrir** : `tools/debris-scan.cs`, `tools/RadarSweep.cs`, `tools/Grid.cs`, `tools/Conjunction.cs` (pas de variante .NET 10). Montrer `#:include`, `StringStream`, l'indexeur d'extension `grid[pos]` et `break outer;`.
 - **Public** : un fichier, pas de `.csproj`, qui en inclut trois autres. Scénario : une image radar centrée sur la sonde ; le script s'arrête à la première conjonction prédite, comme un évitement de débris pour l'ISS.
 - **Plan B** : capture de la console de la ressource.
@@ -85,7 +85,7 @@ Non exercé en répétition automatisée :
 |---|---|---|
 | `dotnetup sdk install 11.0.1xx` | SDK déjà installé, jamais lancé | Installation complète dans un terminal |
 | `aspire run` | Seul `dotnet run --project src/MissionControl.AppHost --launch-profile https` a été exécuté | Sortie de `aspire run` avec l'URL du dashboard |
-| Dashboard (ressources, Terminals, traces, console d'`debris-scan`) | Rendu visuel, non vérifiable sans interface | Une capture par page |
+| Dashboard (ressources, Terminals, traces, console de `debris-scan`) | Rendu visuel, non vérifiable sans interface | Une capture par page |
 | Client MCP réel | Seules les requêtes JSON-RPC ont été jouées | Session d'agent complète |
 | WSL, auto-trust des certificats | Non testable ici | HTTPS sans avertissement depuis WSL |
 | Avertissement CS8509 à l'ajout de `Refuel`, bascule `runtime-async` en direct | Dépend de l'éditeur | Capture de l'avertissement ; piles 14 et 7 |

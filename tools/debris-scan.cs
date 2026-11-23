@@ -27,7 +27,8 @@ for (var row = 0; row < grid.Count; row++)
         var pos = new Position(row, col);
         if (grid[pos] != '#') continue;
 
-        if (Conjunction.Predict(pos, probe) is not { } minutes)
+        var minutes = Conjunction.Predict(pos, probe);
+        if (minutes is null)
         {
             Console.WriteLine($"Débris en ({pos.Row}, {pos.Col}) : trajectoire divergente, sans danger.");
             continue;
