@@ -103,9 +103,9 @@ public sealed class DispatcherTests
     public void Describe_names_every_case()
     {
         var id = Guid.NewGuid();
-        Assert.Equal("ack", CommandDispatcher.Describe(new Acknowledged(id, DateTimeOffset.UtcNow)));
-        Assert.Equal("rejected", CommandDispatcher.Describe(new Rejected(id, "non")));
-        Assert.Equal("timeout", CommandDispatcher.Describe(new TimedOut(id, TimeSpan.FromSeconds(2))));
-        Assert.Equal("lost", CommandDispatcher.Describe(new ProbeLost(id, "Pioneer-11")));
+        Assert.Equal("ack", CommandResult.Describe(new Acknowledged(id, DateTimeOffset.UtcNow)));
+        Assert.Equal("rejected", CommandResult.Describe(new Rejected(id, "non")));
+        Assert.Equal("timeout", CommandResult.Describe(new TimedOut(id, TimeSpan.FromSeconds(2))));
+        Assert.Equal("lost", CommandResult.Describe(new ProbeLost(id, "Pioneer-11")));
     }
 }

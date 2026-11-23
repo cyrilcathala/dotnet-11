@@ -20,8 +20,8 @@ app.MapPost("/commands", async (ProbeCommand command, CommandDispatcher dispatch
     TimeProvider time, CancellationToken ct) =>
 {
     CommandResult result = await dispatcher.DispatchAsync(command, ct);
-    history.Append(new CommandHistoryEntry(command.Id, command.ProbeName, CommandDispatcher.ToRequest(command).Type,
-        CommandDispatcher.Describe(result), time.GetUtcNow()));
+    history.Append(new CommandHistoryEntry(command.Id, command.ProbeName, ProbeCommand.ToRequest(command).Type,
+        CommandResult.Describe(result), time.GetUtcNow()));
     return result;
 });
 

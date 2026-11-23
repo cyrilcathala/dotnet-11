@@ -8,14 +8,7 @@ namespace MissionControl.Api;
 [JsonDerivedType(typeof(Rotate), "rotate")]
 [JsonDerivedType(typeof(CapturePhoto), "capture-photo")]
 [JsonDerivedType(typeof(SelfDestruct), "self-destruct")]
-public abstract record ProbeCommand(Guid Id, string ProbeName);
-
-public sealed record Thrust(Guid Id, string ProbeName, double DeltaV) : ProbeCommand(Id, ProbeName);
-public sealed record Rotate(Guid Id, string ProbeName, double Degrees) : ProbeCommand(Id, ProbeName);
-public sealed record CapturePhoto(Guid Id, string ProbeName) : ProbeCommand(Id, ProbeName);
-public sealed record SelfDestruct(Guid Id, string ProbeName) : ProbeCommand(Id, ProbeName);
-
-public static class ProbeCommandMapper
+public abstract record ProbeCommand(Guid Id, string ProbeName)
 {
     // Pas de type fermé en .NET 10 : le compilateur ne vérifie pas l'exhaustivité, d'où le default: throw.
     public static SimulatorCommandRequest ToRequest(ProbeCommand cmd) => cmd switch
@@ -27,3 +20,8 @@ public static class ProbeCommandMapper
         _ => throw new ArgumentOutOfRangeException(nameof(cmd), cmd, "Commande inconnue"),
     };
 }
+
+public sealed record Thrust(Guid Id, string ProbeName, double DeltaV) : ProbeCommand(Id, ProbeName);
+public sealed record Rotate(Guid Id, string ProbeName, double Degrees) : ProbeCommand(Id, ProbeName);
+public sealed record CapturePhoto(Guid Id, string ProbeName) : ProbeCommand(Id, ProbeName);
+public sealed record SelfDestruct(Guid Id, string ProbeName) : ProbeCommand(Id, ProbeName);

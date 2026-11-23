@@ -22,7 +22,7 @@ public sealed class CommandDispatcher(IHttpClientFactory clients, IOptions<Comma
         try
         {
             using var response = await clients.CreateClient("probesimulator").PostAsJsonAsync(
-                $"/flights/{Uri.EscapeDataString(cmd.ProbeName)}/commands", ToRequest(cmd), cts.Token);
+                $"/flights/{Uri.EscapeDataString(cmd.ProbeName)}/commands", ProbeCommand.ToRequest(cmd), cts.Token);
             if (response.StatusCode == HttpStatusCode.NotFound)
                 return new Rejected(cmd.Id, "Sonde inconnue ou au sol");
             response.EnsureSuccessStatusCode();
@@ -46,20 +46,4 @@ public sealed class CommandDispatcher(IHttpClientFactory clients, IOptions<Comma
             _ => new Rejected(cmd.Id, "Réponse inconnue du simulateur"),
         };
     }
-
-    public static SimulatorCommandRequest ToRequest(ProbeCommand cmd) => cmd switch
-    {
-        Thrust t => new SimulatorCommandRequest(t.Id, "thrust", t.DeltaV),
-        Rotate r => new SimulatorCommandRequest(r.Id, "rotate", r.Degrees),
-        CapturePhoto c => new SimulatorCommandRequest(c.Id, "capture-photo", null),
-        SelfDestruct s => new SimulatorCommandRequest(s.Id, "self-destruct", null),
-    };
-
-    public static string Describe(CommandResult r) => r switch
-    {
-        Acknowledged => "ack",
-        Rejected => "rejected",
-        TimedOut => "timeout",
-        ProbeLost => "lost",
-    };
 }
