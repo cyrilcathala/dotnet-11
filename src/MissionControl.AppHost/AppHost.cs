@@ -27,7 +27,7 @@ var mcp = builder.AddDotnetProject("mcp", "../MissionControl.Mcp/MissionControl.
     .WithReference(missioncontrol)
     .WithReference(telemetryreceiver);
 
-builder.AddExecutable("asteroid-scan", "dotnet", toolsDirectory, "run", "--file", "asteroid-scan.cs");
+builder.AddExecutable("debris-scan", "dotnet", toolsDirectory, "run", "--file", "debris-scan.cs");
 
 // Console de démonstration (Blazor) : une page par étape, appelle chaque service et lit les sources du dépôt.
 builder.AddDotnetProject("console", "../MissionControl.Web/MissionControl.Web.csproj")

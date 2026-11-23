@@ -85,8 +85,8 @@ GET {{telemetryreceiver}}/telemetry/{{probe}}/latest
 GET {{telemetryreceiver}}/telemetry/stats
 
 ############################################################
-### ÉTAPE 4 : asteroid-scan (lancé depuis le dashboard, pas de requête)
-### Secours en console : dotnet run --file tools/asteroid-scan.cs
+### ÉTAPE 4 : debris-scan (lancé depuis le dashboard, pas de requête)
+### Secours en console : dotnet run --file tools/debris-scan.cs
 ############################################################
 
 ############################################################

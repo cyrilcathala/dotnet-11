@@ -9,7 +9,7 @@ Script du présentateur. Ordre : étapes 0 à 7 de la spec (`docs/superpowers/sp
 3. Relever les ports : `aspire describe --format Table`. Les ports des services sont dynamiques ; les reporter en tête de `docs/demo.http`. MCP est fixe : http 6277, https 5085.
 4. Les données sont en mémoire : après un déroulé complet (étape 6), redémarrer l'AppHost pour rejouer (sinon « nom déjà pris »).
 5. Tag de retour à un état connu : `git checkout demo-ready` (un seul tag : le code n'est pas découpé par étape, huit tags identiques auraient induit en erreur).
-6. Pré-compiler pour éviter l'attente : un premier `dotnet run --file tools/preflight.cs` et `dotnet run --file tools/asteroid-scan.cs`. Le premier lancement de `preflight.cs` compile le fichier et prend quelques secondes.
+6. Pré-compiler pour éviter l'attente : un premier `dotnet run --file tools/preflight.cs` et `dotnet run --file tools/debris-scan.cs`. Le premier lancement de `preflight.cs` compile le fichier et prend quelques secondes.
 
 ## Console visuelle (Blazor)
 
@@ -18,9 +18,9 @@ La ressource `console` de l'AppHost (`src/MissionControl.Web`) sert http://local
 ## Étape 0 : préparation et AppHost
 
 - **Faire** : installer le SDK 11 (`dotnetup sdk install 11.0.1xx`, puis `dotnet --version` = `11.0.100`), puis lancer l'AppHost (voir ci-dessus, ou `aspire run`). Générer le schéma : `aspire describe --format mermaid` (identique à `docs/architecture.mmd`, à réutiliser en slide).
-- **Aspire 17** : les ressources se déclarent avec `AddDotnetProject(name, path)` (`AddProject<T>` est obsolète). `asteroid-scan` est un `AddExecutable("asteroid-scan", "dotnet", toolsDirectory, "run", "--file", "asteroid-scan.cs")`.
+- **Aspire 17** : les ressources se déclarent avec `AddDotnetProject(name, path)` (`AddProject<T>` est obsolète). `debris-scan` est un `AddExecutable("debris-scan", "dotnet", toolsDirectory, "run", "--file", "debris-scan.cs")`.
 - **Ouvrir** : `src/MissionControl.AppHost/AppHost.cs` (pas d'équivalent .NET 10, c'est une version d'Aspire).
-- **Public** : le dashboard liste `probefactory`, `launchcontrol`, `probesimulator`, `telemetryreceiver`, `missioncontrol`, `mcp` en `Healthy`, et `asteroid-scan` en `Finished`. Montrer la page Terminals.
+- **Public** : le dashboard liste `probefactory`, `launchcontrol`, `probesimulator`, `telemetryreceiver`, `missioncontrol`, `mcp` en `Healthy`, et `debris-scan` en `Finished`. Montrer la page Terminals.
 - **Bonus WSL** : depuis WSL, `dotnet dev-certs https --trust` installe le certificat dans WSL et dans Windows (notes de version ASP.NET Core 11).
 - **Plan B** : capture de l'installation dotnetup (la chaîne `dotnetup sdk install` n'a jamais été exécutée, le SDK était déjà là) ; capture du dashboard ; capture du HTTPS WSL sans avertissement. Garder le SDK 11 installé à l'avance.
 
@@ -48,11 +48,11 @@ La ressource `console` de l'AppHost (`src/MissionControl.Web`) sert http://local
 - **Public** : une trame JSON avec `packetId`, `altitudeKm`, `batteryPercent` ; `received` qui monte.
 - **Plan B** : captures des tableaux BenchmarkDotNet (reproduits plus bas).
 
-## Étape 4 : interlude, asteroid-scan
+## Étape 4 : interlude, debris-scan
 
-- **Faire** : dans le dashboard, redémarrer la ressource `asteroid-scan` et ouvrir sa console. Secours en terminal : `dotnet run --file tools/asteroid-scan.cs`. Sortie attendue : `Astéroïde détecté en (0, 10) — trajectoire corrigée.`
-- **Ouvrir** : `tools/asteroid-scan.cs`, `tools/SectorMap.cs`, `tools/Grid.cs` (pas de variante .NET 10). Montrer `#:include`, `StringStream`, l'indexeur d'extension `grid[pos]` et `break outer;`.
-- **Public** : un fichier, pas de `.csproj`, qui en inclut deux autres.
+- **Faire** : dans le dashboard, redémarrer la ressource `debris-scan` et ouvrir sa console. Secours en terminal : `dotnet run --file tools/debris-scan.cs`. Sortie attendue : `Débris en (4, 10) : conjonction dans 4 min — manœuvre d'évitement.`
+- **Ouvrir** : `tools/debris-scan.cs`, `tools/RadarSweep.cs`, `tools/Grid.cs`, `tools/Conjunction.cs` (pas de variante .NET 10). Montrer `#:include`, `StringStream`, l'indexeur d'extension `grid[pos]` et `break outer;`.
+- **Public** : un fichier, pas de `.csproj`, qui en inclut trois autres. Scénario : une image radar centrée sur la sonde ; le script s'arrête à la première conjonction prédite, comme un évitement de débris pour l'ISS.
 - **Plan B** : capture de la console de la ressource.
 
 ## Étape 5 : MissionControl
@@ -85,7 +85,7 @@ Non exercé en répétition automatisée :
 |---|---|---|
 | `dotnetup sdk install 11.0.1xx` | SDK déjà installé, jamais lancé | Installation complète dans un terminal |
 | `aspire run` | Seul `dotnet run --project src/MissionControl.AppHost --launch-profile https` a été exécuté | Sortie de `aspire run` avec l'URL du dashboard |
-| Dashboard (ressources, Terminals, traces, console d'`asteroid-scan`) | Rendu visuel, non vérifiable sans interface | Une capture par page |
+| Dashboard (ressources, Terminals, traces, console d'`debris-scan`) | Rendu visuel, non vérifiable sans interface | Une capture par page |
 | Client MCP réel | Seules les requêtes JSON-RPC ont été jouées | Session d'agent complète |
 | WSL, auto-trust des certificats | Non testable ici | HTTPS sans avertissement depuis WSL |
 | Avertissement CS8509 à l'ajout de `Refuel`, bascule `runtime-async` en direct | Dépend de l'éditeur | Capture de l'avertissement ; piles 14 et 7 |
