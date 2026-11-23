@@ -39,6 +39,8 @@ builder.AddDotnetProject("console", "../MissionControl.Web/MissionControl.Web.cs
     .WithReference(telemetryreceiver)
     .WithReference(missioncontrol)
     .WithReference(mcp)
+    // Adresse du dashboard : la page Incident ouvre directement la trace de la commande.
+    .WithEnvironment("Console__DashboardUrl", builder.Configuration["ASPNETCORE_URLS"]?.Split(';')[0] ?? "")
     .WithEnvironment("Console__RepoRoot", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "../..")));
 
 builder.Build().Run();

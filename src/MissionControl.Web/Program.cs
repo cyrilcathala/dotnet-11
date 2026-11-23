@@ -1,8 +1,10 @@
 using MissionControl.Web.Components;
 using MissionControl.Web.Services;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
+builder.Services.ConfigureOpenTelemetryTracerProvider(t => t.AddSource(MissionApi.ActivitySourceName));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

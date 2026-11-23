@@ -13,6 +13,9 @@ public sealed record Exchange(
     int? Status, string? Reason, string? ContentType, string? ResponseBody,
     TimeSpan Elapsed, string? Error)
 {
+    /// <summary>Trace OpenTelemetry de l'appel, pour l'ouvrir dans le dashboard Aspire.</summary>
+    public string? TraceId { get; init; }
+
     public bool IsSuccess => Status is >= 200 and < 300;
     public string Url => $"http://{Service}{Path}";
 
@@ -37,6 +40,10 @@ public sealed class MissionApi(IHttpClientFactory clients)
     public const string TelemetryReceiver = "telemetryreceiver";
     public const string MissionControl = "missioncontrol";
     public const string Mcp = "mcp";
+
+    // Un span racine par appel de la console : la trace porte un nom lisible et on connaît son identifiant.
+    public const string ActivitySourceName = "MissionControl.Console";
+    private static readonly ActivitySource Source = new(ActivitySourceName);
 
     public static readonly string[] Services =
         [ProbeFactory, LaunchControl, ProbeSimulator, TelemetryReceiver, MissionControl, Mcp];
@@ -73,6 +80,8 @@ public sealed class MissionApi(IHttpClientFactory clients)
             shown.Add(new(name, value));
         }
 
+        using var activity = Source.StartActivity($"console {method.Method} {path}");
+        var traceId = activity?.TraceId.ToHexString();
         var watch = Stopwatch.StartNew();
         try
         {
@@ -80,12 +89,12 @@ public sealed class MissionApi(IHttpClientFactory clients)
             var body = await response.Content.ReadAsStringAsync(ct);
             var contentType = response.Content.Headers.ContentType?.MediaType;
             return new Exchange(service, method.Method, path, shown, json, (int)response.StatusCode,
-                response.ReasonPhrase, contentType, Format(body, contentType), watch.Elapsed, null);
+                response.ReasonPhrase, contentType, Format(body, contentType), watch.Elapsed, null) { TraceId = traceId };
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
             return new Exchange(service, method.Method, path, shown, json, null, null, null, null,
-                watch.Elapsed, $"{service} injoignable : {e.Message}");
+                watch.Elapsed, $"{service} injoignable : {e.Message}") { TraceId = traceId };
         }
     }
 
