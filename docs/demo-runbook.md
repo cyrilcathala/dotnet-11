@@ -57,17 +57,22 @@ La ressource `console` de l'AppHost (`src/MissionControl.Web`) sert http://local
 
 ## Étape 5 : MissionControl
 
-- **Requêtes** : `docs/demo.http` 5.1 (Acknowledged), 5.2 (Rejected), 5.3, 5.4 (historique JSONL), 5.5 (OpenAPI en `anyOf`). En terminal : `curl -N <missioncontrol>/commands/history` (un objet JSON par ligne, réponse en flux ; l'historique courant, puis la réponse se termine).
-- **Ouvrir en split** : `compare/net10/Compare.Net10/MissionControl/ProbeCommand.cs` | `src/MissionControl.Api/ProbeCommand.cs` (`abstract record` + `default: throw` contre `closed record`) ; `compare/net10/Compare.Net10/MissionControl/CommandResult.cs` | `src/MissionControl.Api/CommandResult.cs` (hiérarchie contre `union`) ; `compare/net10/Compare.Net10/MissionControl/CommandHistoryEndpoint.cs` | `src/MissionControl.Api/Program.cs` (`SerializeAsyncEnumerable(..., topLevelValues: true)`).
-- **Démo du `closed`** : coller à la fin de `src/MissionControl.Api/ProbeCommand.cs` la ligne `public record Refuel(Guid Id, string ProbeName, double Liters) : ProbeCommand(Id, ProbeName);`. Attendu : avertissement CS8509 (switch non exhaustif) sur le `switch` de `CommandDispatcher.ToRequest`. Annuler ensuite : `git checkout -- src/MissionControl.Api/ProbeCommand.cs`.
-- **OpenTelemetry natif** : dans le dashboard, ouvrir les Traces : la commande traverse `missioncontrol` puis `probesimulator`, sans `OpenTelemetry.Instrumentation.AspNetCore` côté .NET 11 (le `.csproj` de `compare/net10` l'a).
-- **Public** : réponses `Acknowledged` / `Rejected` sans discriminant (l'union sérialise le cas directement) ; un objet JSON par ligne.
-- **Plan B** : capture de la trace distribuée.
+Le contrat de commande : `closed` et union. Le journal JSONL et la trace sont gardés pour l'étape 6.
+
+- **Requêtes** : `docs/demo.http` 5.1 (Acknowledged), 5.2 (Rejected), 5.3, 5.4 (OpenAPI en `anyOf`). Dans la console, un clic sur un scénario préremplit la console de commande ; « Transmettre » l'envoie.
+- **Ouvrir en split** : `compare/net10/Compare.Net10/MissionControl/ProbeCommand.cs` | `src/MissionControl.Api/ProbeCommand.cs` (`abstract record` + `default: throw` contre `closed record`, chacun avec son `switch` `ToRequest`) ; `compare/net10/Compare.Net10/MissionControl/CommandResult.cs` | `src/MissionControl.Api/CommandResult.cs` (hiérarchie contre `union`, chacun avec son `switch` `Describe`).
+- **Démo du `closed`** : coller à la fin de `src/MissionControl.Api/ProbeCommand.cs` la ligne `public record Refuel(Guid Id, string ProbeName, double Liters) : ProbeCommand(Id, ProbeName);`. Attendu : avertissement CS8509 (switch non exhaustif) sur le `switch` de `ProbeCommand.ToRequest`, quelques lignes plus haut dans le même fichier. Annuler ensuite : `git checkout -- src/MissionControl.Api/ProbeCommand.cs`.
+- **Public** : réponses `Acknowledged` / `Rejected` sans discriminant (l'union sérialise le cas directement), et le même résultat décrit en `anyOf` dans l'OpenAPI. Finir sur la branche `ProbeLost` du `switch`, qu'aucune commande n'a encore déclenchée.
+- **Plan B** : capture de la réponse et du schéma OpenAPI.
 
 ## Étape 6 : incident
 
-- **Requêtes** : `docs/demo.http` 6.1 (`self-destruct`, `ProbeLost`), 6.2 (toujours `ProbeLost`), 6.3 (sonde inconnue, `Rejected`), 6.4 (l'historique).
-- **Public** : `{"commandId":..., "probeName":"Pioneer-12"}` (le cas `ProbeLost`) ; `received` dans `/telemetry/stats` cesse d'augmenter ; la trace OpenTelemetry montre où la mission s'est arrêtée.
+L'incident, puis le post-mortem : le journal de bord sert de boîte noire, la trace montre où la mission s'est arrêtée.
+
+- **Requêtes** : `docs/demo.http` 6.1 (`self-destruct`, `ProbeLost`), 6.2 (toujours `ProbeLost`), 6.3 (sonde inconnue, `Rejected`), 6.4 (le journal JSONL de toute la mission). En terminal : `curl -N <missioncontrol>/commands/history` (un objet JSON par ligne, réponse en flux ; l'historique courant, puis la réponse se termine).
+- **Ouvrir en split** : `compare/net10/Compare.Net10/MissionControl/CommandHistoryEndpoint.cs` | `src/MissionControl.Api/Program.cs` (`SerializeAsyncEnumerable(..., topLevelValues: true)`).
+- **OpenTelemetry natif** : le bouton « Ouvrir la trace dans le dashboard » de la console ouvre la trace de la dernière commande (span racine `console POST /commands`). Elle traverse `missioncontrol` puis `probesimulator`, sans `OpenTelemetry.Instrumentation.AspNetCore` côté .NET 11 (le `.csproj` de `compare/net10` l'a). Le lien suppose que le navigateur est déjà connecté au dashboard (ouvert par l'AppHost).
+- **Public** : `{"commandId":..., "probeName":"Pioneer-12"}` (le cas `ProbeLost`) ; la télémétrie se tait (LOS) ; le journal retrace ack, rejected, puis lost.
 - **Plan B** : capture de la trace.
 
 ## Étape 7 : final, serveur MCP

@@ -2,11 +2,12 @@
 @implements IDisposable
 @inject MissionApi Api
 @inject MissionState State
+@inject IConfiguration Configuration
 
 <StepHeader Step="Step" />
 
 <div class="grid grid-wide">
-    <TelemetryMonitor Probe="@State.Probe" SignalChanged="OnSignalChanged" />
+    <TelemetryMonitor Probe="@State.Probe" />
 
     <div class="stack">
         <Panel Title="Autodestruction" Framed>
@@ -30,50 +31,50 @@
                 <span><span class="scenario-title">Relancer une poussée</span><div class="scenario-hint">thrust · deltaV = 1 · @State.Probe</div></span>
                 <span class="scenario-expect">ProbeLost</span>
             </button>
-            <button class="scenario" disabled="@_busy" @onclick='() => SendAsync("thrust", 1, "6.3", "Inconnue")'>
-                <span class="scenario-id">6.3</span>
-                <span><span class="scenario-title">Sonde jamais lancée</span><div class="scenario-hint">thrust · probeName = Inconnue</div></span>
-                <span class="scenario-expect">Rejected</span>
-            </button>
         </Panel>
 
-        <Panel Title="Main courante">
-            @if (_log.Count == 0)
-            {
-                <div class="note">Aucun événement.</div>
-            }
-            @foreach (var e in _log.AsEnumerable().Reverse())
-            {
-                <div class="row" style="gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line)">
-                    <span class="mono" style="font-size: 12px; color: var(--muted)">@e.At.ToString("HH:mm:ss")</span>
-                    <span class="badge @e.Css">@e.Tag</span>
-                    <span style="font-size: 13px">@e.Text</span>
-                </div>
-            }
+        <Panel Title="CommandResult" Framed>
+            <Actions><span class="label">POST /commands</span></Actions>
+            <ChildContent>
+                <OutcomeBanner Exchange="_exchange" />
+            </ChildContent>
         </Panel>
     </div>
 </div>
 
-<div class="grid grid-2 mt">
-    <Panel Title="CommandResult" Framed>
-        <Actions><span class="label">POST /commands</span></Actions>
-        <ChildContent>
-            <OutcomeBanner Exchange="_exchange" />
-            <div class="note mt">
-                Le <code>switch</code> sur l'union est exhaustif : <code>ProbeLost</code> a sa branche, sans <code>default</code>.
-                Dans le dashboard Aspire, la trace de la commande montre où la mission s'est arrêtée.
-            </div>
-        </ChildContent>
-    </Panel>
+<div class="mt">
     <ExchangeView Exchange="_exchange" Busy="_busy" Title="Liaison MissionControl" />
 </div>
 
-<div class="mt">
+<div class="grid grid-wide mt">
     <HistoryStream @ref="_history" />
+
+    <Panel Title="Trace · OpenTelemetry natif" Framed>
+        <div class="note">
+            La commande traverse <code>console</code>, <code>missioncontrol</code> puis <code>probesimulator</code>.
+            Aucun package <code>OpenTelemetry.Instrumentation.*</code> : ASP.NET Core et HttpClient émettent eux-mêmes leurs activités.
+        </div>
+        @if (_trace is { } trace)
+        {
+            <div class="note mt">Dernière commande : <strong>@trace.Label</strong> · <span class="mono">@trace.Id[..8]…</span></div>
+            @if (TraceUrl(trace.Id) is { } url)
+            {
+                <a class="btn btn-primary btn-block mt" href="@url" target="_blank" rel="noopener">Ouvrir la trace dans le dashboard</a>
+            }
+            else
+            {
+                <div class="caveat mt"><strong>Dashboard inconnu.</strong> Lancer la console depuis l'AppHost, ou chercher la trace dans l'onglet Traces.</div>
+            }
+        }
+        else
+        {
+            <div class="note mt">Envoyer une commande pour obtenir sa trace.</div>
+        }
+    </Panel>
 </div>
 
 <div class="mt">
-    <CodeCompare Title="Le cas ProbeLost, de bout en bout" Pairs="Code" MaxHeight="420" />
+    <CodeCompare Title="Le post-mortem · .NET 10 face à .NET 11" Pairs="Code" MaxHeight="420" />
 </div>
 
 <StepNav Step="Step" />
@@ -81,21 +82,29 @@
 @code {
     private static readonly MissionStep Step = Mission.ByNumber(6);
 
-    private record LogEntry(DateTimeOffset At, string Tag, string Css, string Text);
-
+    // Seulement les nouveautés .NET 11 du post-mortem : le journal JSONL et OpenTelemetry sans package d'instrumentation.
     private static readonly CodePair[] Code =
     [
-        new("Simulateur", null, "src/ProbeSimulator/FlightRegistry.cs", AfterMarks: ["self-destruct", "\"lost\"", "flight.Stop()"]),
-        new("Dispatcher", null, "src/MissionControl.Api/CommandDispatcher.cs", AfterMarks: ["ProbeLost", "\"lost\""]),
-        new("union", "compare/net10/Compare.Net10/MissionControl/CommandResult.cs", "src/MissionControl.Api/CommandResult.cs",
-            ["ProbeLost"], ["ProbeLost"]),
+        new("Journal JSONL", "compare/net10/Compare.Net10/MissionControl/CommandHistoryEndpoint.cs", "src/MissionControl.Api/Program.cs",
+            ["WriteAsync", "'\\n'", "\\n"], ["SerializeAsyncEnumerable", "topLevelValues", "application/jsonl"]),
+        new("OpenTelemetry · packages", "compare/net10/Compare.Net10/Compare.Net10.csproj", "src/MissionControl.ServiceDefaults/MissionControl.ServiceDefaults.csproj",
+            ["OpenTelemetry.Instrumentation"], ["OpenTelemetry."]),
+        new("OpenTelemetry · configuration", "compare/net10/Compare.Net10/ServiceDefaults/Extensions.cs", "src/MissionControl.ServiceDefaults/Extensions.cs",
+            ["AddAspNetCoreInstrumentation", "AddHttpClientInstrumentation"], ["AddSource(\"Microsoft.AspNetCore\")", "AddMeter(", "Pas de package"]),
     ];
 
-    private readonly List<LogEntry> _log = [];
+    private record Trace(string Label, string Id);
+
     private bool _armed, _busy;
     private Exchange? _exchange;
+    private Trace? _trace;
     private HistoryStream? _history;
     private Timer? _disarm;
+
+    private string? TraceUrl(string traceId) =>
+        Configuration["Console:DashboardUrl"] is { Length: > 0 } dashboard
+            ? $"{dashboard.TrimEnd('/')}/traces/detail/{traceId}"
+            : null;
 
     private void Arm()
     {
@@ -111,17 +120,8 @@
         _armed = false;
         _exchange = await Api.PostAsync(MissionApi.MissionControl, "/commands", Commands.Build(type, probe ?? State.Probe, value));
         _busy = false;
-        var outcome = CommandOutcome.From(_exchange.Json);
-        _log.Add(new(DateTimeOffset.UtcNow, id, outcome?.Css ?? "bad", $"{type} → {outcome?.Case ?? _exchange.Error ?? "?"}"));
+        if (_exchange.TraceId is { } traceId) _trace = new($"{id} · {type}", traceId);
         if (_history is not null) await _history.LoadAsync();
-    }
-
-    private void OnSignalChanged(TelemetryMonitor.SignalState state)
-    {
-        if (state == TelemetryMonitor.SignalState.Lost)
-            _log.Add(new(DateTimeOffset.UtcNow, "LOS", "bad", "Plus aucune trame depuis 3 s"));
-        else if (state == TelemetryMonitor.SignalState.Nominal)
-            _log.Add(new(DateTimeOffset.UtcNow, "AOS", "ok", "Signal acquis"));
     }
 
     public void Dispose() => _disarm?.Dispose();

@@ -9,7 +9,7 @@
         <Panel Title="Scénarios du runbook" Flush>
             @foreach (var s in Scenarios)
             {
-                <button class="scenario" disabled="@_busy" @onclick="() => SendAsync(s.Type, s.Value)">
+                <button class="scenario @(_scenario == s ? "on" : "")" disabled="@_busy" @onclick="() => Prefill(s)">
                     <span class="scenario-id">@s.Id</span>
                     <span>
                         <span class="scenario-title">@s.Title</span>
@@ -24,7 +24,7 @@
             <div class="cmd-grid">
                 @foreach (var c in CommandTypes)
                 {
-                    <button class="cmd @(_type == c.Type ? "on" : "")" @onclick="() => _type = c.Type">
+                    <button class="cmd @(_type == c.Type ? "on" : "")" @onclick="() => Select(c.Type)">
                         <span class="cmd-name">@c.Record</span>
                         <span class="cmd-type">@c.Type</span>
                     </button>
@@ -34,14 +34,16 @@
             {
                 <div class="field mt">
                     <label class="label" for="value">@(_type == "thrust" ? "DeltaV (km/s)" : "Degrees")</label>
-                    <input id="value" class="input" type="number" step="0.5" @bind="_value" />
+                    <input id="value" class="input" type="number" step="0.5" @bind="_value" @bind:after="() => _scenario = null" />
                 </div>
             }
             @if (_type == "self-destruct")
             {
-                <div class="caveat mt"><strong>Irréversible.</strong> Réservé à l'étape 06 · Incident.</div>
+                <div class="caveat mt">
+                    <strong>Rendez-vous à l'étape suivante.</strong>
+                </div>
             }
-            <button class="btn btn-primary btn-block mt" disabled="@(_busy || _type == "self-destruct")" @onclick="() => SendAsync(_type, _value)">
+            <button class="btn btn-primary btn-block mt" disabled="@(_busy || _type == "self-destruct")" @onclick="SendAsync">
                 Transmettre à @State.Probe
             </button>
         </Panel>
@@ -54,32 +56,29 @@
                 <OutcomeBanner Exchange="_exchange" />
             </ChildContent>
         </Panel>
+
         <ExchangeView Exchange="_exchange" Busy="_busy" Title="Liaison MissionControl" />
+
+        <Panel Title="OpenAPI · réponse de POST /commands" Flush>
+            <Actions>
+                <button class="btn btn-sm" @onclick="LoadOpenApiAsync">5.4 · Lire /openapi/v1.json</button>
+            </Actions>
+            <ChildContent>
+                @if (_schema is null)
+                {
+                    <pre class="code-block empty">Document non chargé. L'union y est décrite en anyOf, un schéma par cas.</pre>
+                }
+                else
+                {
+                    <pre class="code-block" style="max-height: 320px">@((MarkupString)JsonHighlighter.ToHtml(_schema))</pre>
+                }
+            </ChildContent>
+        </Panel>
     </div>
 </div>
 
-<div class="grid grid-2 mt">
-    <HistoryStream @ref="_history" />
-
-    <Panel Title="OpenAPI · réponse de POST /commands" Flush>
-        <Actions>
-            <button class="btn btn-sm" @onclick="LoadOpenApiAsync">5.5 · Lire /openapi/v1.json</button>
-        </Actions>
-        <ChildContent>
-            @if (_schema is null)
-            {
-                <pre class="code-block empty">Document non chargé.</pre>
-            }
-            else
-            {
-                <pre class="code-block">@((MarkupString)JsonHighlighter.ToHtml(_schema))</pre>
-            }
-        </ChildContent>
-    </Panel>
-</div>
-
 <div class="mt">
-    <CodeCompare Title="Commandes et résultats · .NET 10 face à .NET 11" Pairs="Code" />
+    <CodeCompare Title="Le contrat de commande · .NET 10 face à .NET 11" Pairs="Code" MaxHeight="560" />
 </div>
 
 <StepNav Step="Step" />
@@ -106,33 +105,41 @@
         new("self-destruct", "SelfDestruct"),
     ];
 
+    // Une vue par nouveauté : le type et son switch sont dans le même fichier, de chaque côté.
     private static readonly CodePair[] Code =
     [
         new("closed record", "compare/net10/Compare.Net10/MissionControl/ProbeCommand.cs", "src/MissionControl.Api/ProbeCommand.cs",
-            ["abstract record"], ["closed record"]),
-        new("Switch exhaustif", "compare/net10/Compare.Net10/MissionControl/ProbeCommand.cs", "src/MissionControl.Api/CommandDispatcher.cs",
-            ["default", "throw"], ["Thrust t =>", "Rotate r =>", "CapturePhoto c =>", "SelfDestruct s =>", "Acknowledged =>", "ProbeLost =>"]),
+            ["abstract record", "_ => throw"], ["closed record", "SelfDestruct s =>"]),
         new("union", "compare/net10/Compare.Net10/MissionControl/CommandResult.cs", "src/MissionControl.Api/CommandResult.cs",
-            ["abstract record", ": CommandResult"], ["union CommandResult"]),
-        new("JSONL", "compare/net10/Compare.Net10/MissionControl/CommandHistoryEndpoint.cs", "src/MissionControl.Api/Program.cs",
-            ["WriteAsync", "'\\n'", "\\n"], ["SerializeAsyncEnumerable", "topLevelValues", "application/jsonl"]),
-        new("OpenTelemetry natif", null, "src/MissionControl.ServiceDefaults/Extensions.cs",
-            AfterMarks: ["AddSource(\"Microsoft.AspNetCore\")", "Pas de package"]),
+            ["abstract record", ": CommandResult", "_ => throw"], ["union CommandResult", "ProbeLost =>"]),
     ];
 
-    private string _type = "thrust";
-    private double? _value = 2.5;
+    private Scenario? _scenario = Scenarios[0];
+    private string _type = Scenarios[0].Type;
+    private double? _value = Scenarios[0].Value;
     private bool _busy;
     private Exchange? _exchange;
-    private HistoryStream? _history;
     private string? _schema;
 
-    private async Task SendAsync(string type, double? value)
+    // Un scénario ne part pas tout seul : il remplit la console, on transmet à la main.
+    private void Prefill(Scenario s)
+    {
+        _scenario = s;
+        _type = s.Type;
+        _value = s.Value;
+    }
+
+    private void Select(string type)
+    {
+        _scenario = null;
+        _type = type;
+    }
+
+    private async Task SendAsync()
     {
         _busy = true;
-        _exchange = await Api.PostAsync(MissionApi.MissionControl, "/commands", Commands.Build(type, State.Probe, value));
+        _exchange = await Api.PostAsync(MissionApi.MissionControl, "/commands", Commands.Build(_type, State.Probe, _value));
         _busy = false;
-        if (_history is not null) await _history.LoadAsync();
     }
 
     private async Task LoadOpenApiAsync()

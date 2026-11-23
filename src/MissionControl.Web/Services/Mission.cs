@@ -18,9 +18,9 @@ public static class Mission
         new(4, "debris", "Interlude", "Débris en orbite", "debris-scan.cs",
             ["#:include", "StringStream", "Indexeur d'extension", "break outer"]),
         new(5, "pilotage", "Pilotage", "Commander la sonde", "MissionControl",
-            ["closed record", "union", "OpenTelemetry natif", "JSONL"]),
+            ["closed record", "union", "OpenAPI anyOf"]),
         new(6, "incident", "Incident", "Perte de contact", "MissionControl",
-            ["ProbeLost", "switch exhaustif", "Trace distribuée"]),
+            ["ProbeLost", "Journal JSONL", "OpenTelemetry natif"]),
         new(7, "mcp", "Final", "Un agent aux commandes", "MissionControl.Mcp",
             ["dotnet new mcpserver", "Transport HTTP sans état"]),
     ];

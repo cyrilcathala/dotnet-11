@@ -90,7 +90,7 @@ GET {{telemetryreceiver}}/telemetry/stats
 ############################################################
 
 ############################################################
-### ÉTAPE 5 : MissionControl (closed + union + JSONL)
+### ÉTAPE 5 : MissionControl (closed + union)
 ############################################################
 
 ### 5.1 Poussée acceptée (200, Acknowledged)
@@ -111,14 +111,11 @@ Content-Type: application/json
 
 { "type": "rotate", "id": "{{commandId}}", "probeName": "{{probe}}", "degrees": 90 }
 
-### 5.4 Historique en JSONL (application/jsonl) : un objet JSON par ligne, réponse en flux. En terminal : curl -N <url>/commands/history
-GET {{missioncontrol}}/commands/history
-
-### 5.5 OpenAPI : le résultat de commande est décrit en anyOf
+### 5.4 OpenAPI : le résultat de commande est décrit en anyOf
 GET {{missioncontrol}}/openapi/v1.json
 
 ############################################################
-### ÉTAPE 6 : incident (ProbeLost)
+### ÉTAPE 6 : incident (ProbeLost + journal JSONL + trace)
 ############################################################
 
 ### 6.1 Autodestruction (200, ProbeLost) : le flux de télémétrie s'arrête
@@ -168,3 +165,6 @@ Content-Type: application/json
 Accept: application/json, text/event-stream
 
 { "jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": { "name": "get_telemetry", "arguments": { "probeName": "{{probe}}" } } }
+
+### 6.4 Journal de bord en JSONL (application/jsonl) : toute la mission, un objet JSON par ligne, réponse en flux. En terminal : curl -N <url>/commands/history
+GET {{missioncontrol}}/commands/history

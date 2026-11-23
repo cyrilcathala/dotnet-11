@@ -330,6 +330,8 @@ code, pre, .mono { font-family: var(--mono); }
 }
 .scenario:last-child { border-bottom: 0; }
 .scenario:hover:not(:disabled) { background: rgba(255, 255, 255, .04); }
+.scenario.on { background: rgba(255, 255, 255, .06); box-shadow: inset 2px 0 0 var(--text); }
+.scenario.on .scenario-id { color: var(--text); }
 .scenario:disabled { opacity: .5; cursor: wait; }
 .scenario-id { font: 500 12px var(--mono); color: var(--muted); }
 .scenario-title { font-size: 14px; font-weight: 500; }
@@ -700,9 +702,11 @@ code, pre, .mono { font-family: var(--mono); }
 
 /* ---------- Cas de l'union ---------- */
 
-.outcome { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
-.outcome-case { display: flex; flex-direction: column; gap: 4px; padding: 16px; color: var(--dim); transition: background .3s, color .3s; }
-.outcome-case + .outcome-case { border-left: 1px solid var(--line); }
+/* Quatre cases côte à côte quand la place le permet, sinon deux par ligne : un nom de cas ne se coupe jamais. */
+.outcome-wrap { container-type: inline-size; }
+.outcome { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+@container (min-width: 700px) { .outcome { grid-template-columns: repeat(4, 1fr); } }
+.outcome-case { display: flex; flex-direction: column; gap: 4px; padding: 16px; color: var(--dim); background: var(--bg-raised); transition: background .3s, color .3s; }
 .outcome-name { font: 600 19px var(--mono); }
 .outcome-case.on { color: #000; }
 .outcome-case.on .label { color: rgba(0, 0, 0, .6); }

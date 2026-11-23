@@ -1,12 +1,14 @@
 @{ var outcome = CommandOutcome.From(Exchange?.Json); }
-<div class="outcome">
-    @foreach (var c in Cases)
-    {
-        <div class="outcome-case @(outcome?.Case == c ? "on " + outcome.Css : "")">
-            <span class="label">case</span>
-            <span class="outcome-name">@c</span>
-        </div>
-    }
+<div class="outcome-wrap">
+    <div class="outcome">
+        @foreach (var c in Cases)
+        {
+            <div class="outcome-case @(outcome?.Case == c ? "on " + outcome.Css : "")">
+                <span class="label">case</span>
+                <span class="outcome-name">@c</span>
+            </div>
+        }
+    </div>
 </div>
 <div class="note mt" style="min-height: 22px">
     @if (outcome is not null)
