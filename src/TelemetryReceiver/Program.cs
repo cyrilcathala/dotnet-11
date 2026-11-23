@@ -1,8 +1,10 @@
 using MissionControl.Contracts;
 using TelemetryReceiver;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
+builder.Services.AddOpenApi();
 builder.Services.AddRequestDecompression();
 builder.Services.AddSingleton<TelemetryStore>();
 builder.Services.AddSingleton<IFlightRecorder, InMemoryFlightRecorder>();
@@ -10,6 +12,8 @@ builder.Services.AddSingleton<IFlightRecorder, InMemoryFlightRecorder>();
 var app = builder.Build();
 app.UseRequestDecompression();
 app.MapDefaultEndpoints();
+app.MapOpenApi();
+app.MapScalarApiReference();
 
 app.MapIngest();
 

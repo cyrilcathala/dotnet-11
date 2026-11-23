@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
 using ProbeFactory;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
+builder.Services.AddOpenApi();
 builder.Services.AddSingleton<IProbeRegistry, InMemoryProbeRegistry>();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddCreateProbe();
@@ -13,6 +15,8 @@ app.UseRequestLocalization(o => o
     .AddSupportedCultures("en", "fr")
     .AddSupportedUICultures("en", "fr"));
 app.MapDefaultEndpoints();
+app.MapOpenApi();
+app.MapScalarApiReference();
 
 app.MapCreateProbe();
 

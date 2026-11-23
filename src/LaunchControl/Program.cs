@@ -2,9 +2,11 @@ extern alias classicasync;
 using System.Net;
 using LaunchControl;
 using MissionControl.Contracts;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
+builder.Services.AddOpenApi();
 builder.Services.AddSingleton<IPreflightRunner, PreflightRunner>();
 builder.Services.AddSingleton<CountdownSequence>();
 // La même classe, compilée sans runtime async (projet LaunchControl.ClassicAsync).
@@ -14,6 +16,8 @@ builder.Services.AddHttpClient("probesimulator", c => c.BaseAddress = new Uri("h
 
 var app = builder.Build();
 app.MapDefaultEndpoints();
+app.MapOpenApi();
+app.MapScalarApiReference();
 
 app.MapPost("/launches", async (LaunchRequest request, IHttpClientFactory clients, IPreflightRunner preflight,
     CancellationToken ct, bool forceStorm = false) =>

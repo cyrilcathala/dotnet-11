@@ -3,6 +3,10 @@
     <Features>runtime-async=on</Features>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../MissionControl.Contracts/MissionControl.Contracts.csproj" />
     <ProjectReference Include="../MissionControl.ServiceDefaults/MissionControl.ServiceDefaults.csproj" />
     <!-- Même source, compilée sans runtime async : GET /diagnostics/countdown-stack?runtimeAsync=false -->

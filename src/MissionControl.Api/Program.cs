@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using MissionControl.Api;
+using Scalar.AspNetCore;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,7 @@ builder.Services.AddHttpClient("probesimulator", c => c.BaseAddress = new Uri("h
 var app = builder.Build();
 app.MapDefaultEndpoints();
 app.MapOpenApi();
+app.MapScalarApiReference();
 
 app.MapPost("/commands", async (ProbeCommand command, CommandDispatcher dispatcher, ICommandHistory history,
     TimeProvider time, CancellationToken ct) =>
