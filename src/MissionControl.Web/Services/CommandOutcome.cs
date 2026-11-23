@@ -1,20 +1,29 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using MissionControl.Contracts;
 
 namespace MissionControl.Web.Services;
 
 /// <summary>
-/// Le cas de l'union <c>CommandResult</c> reconnu à la forme du JSON : l'union sérialise le cas directement,
-/// sans discriminant (Acknowledged → at, Rejected → reason, TimedOut → after, ProbeLost → probeName).
+/// Le cas de l'union <c>CommandResult</c> tel qu'on l'affiche. Le JSON n'a pas de discriminant :
+/// c'est le classifieur structurel déclaré sur l'union (<c>[JsonUnion]</c>) qui retrouve le cas.
 /// </summary>
 public sealed record CommandOutcome(string Case, string Css, string Detail)
 {
-    public static CommandOutcome? From(JsonNode? json) => json switch
+    public static CommandOutcome? From(JsonNode? json)
     {
-        JsonObject o when o.ContainsKey("reason") => new("Rejected", "warn", o["reason"]?.ToString() ?? ""),
-        JsonObject o when o.ContainsKey("after") => new("TimedOut", "bad", $"après {o["after"]}"),
-        JsonObject o when o.ContainsKey("probeName") => new("ProbeLost", "bad", $"contact perdu avec {o["probeName"]}"),
-        JsonObject o when o.ContainsKey("at") => new("Acknowledged", "ok", $"acquittée à {o["at"]?.GetValue<DateTimeOffset>():HH:mm:ss.fff} UTC"),
-        _ => null,
+        if (json is not JsonObject) return null;
+        try { return From(json.Deserialize<CommandResult>(JsonSerializerOptions.Web)); }
+        catch (JsonException) { return null; } // une erreur (problem details) n'est pas un CommandResult
+    }
+
+    // Même switch exhaustif que côté Api : un cas ajouté à l'union le fait échouer ici aussi.
+    public static CommandOutcome From(CommandResult result) => result switch
+    {
+        Acknowledged a => new("Acknowledged", "ok", $"acquittée à {a.At:HH:mm:ss.fff} UTC"),
+        Rejected r => new("Rejected", "warn", r.Reason),
+        TimedOut t => new("TimedOut", "bad", $"après {t.After}"),
+        ProbeLost p => new("ProbeLost", "bad", $"contact perdu avec {p.ProbeName}"),
     };
 }
 

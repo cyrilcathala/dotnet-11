@@ -11,6 +11,7 @@
     <Compile Include="../../tools/RadarSweep.cs" Link="Shared/RadarSweep.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../MissionControl.Contracts/MissionControl.Contracts.csproj" />
     <ProjectReference Include="../MissionControl.ServiceDefaults/MissionControl.ServiceDefaults.csproj" />
   </ItemGroup>
 </Project>

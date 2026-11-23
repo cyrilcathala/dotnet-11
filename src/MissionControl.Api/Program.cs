@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using MissionControl.Api;
+using MissionControl.Contracts;
 using Scalar.AspNetCore;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 

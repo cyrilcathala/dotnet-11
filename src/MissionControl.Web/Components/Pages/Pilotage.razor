@@ -110,8 +110,8 @@
     [
         new("closed record", "compare/net10/Compare.Net10/MissionControl/ProbeCommand.cs", "src/MissionControl.Api/ProbeCommand.cs",
             ["abstract record", "_ => throw"], ["closed record", "SelfDestruct s =>"]),
-        new("union", "compare/net10/Compare.Net10/MissionControl/CommandResult.cs", "src/MissionControl.Api/CommandResult.cs",
-            ["abstract record", ": CommandResult", "_ => throw"], ["union CommandResult", "ProbeLost =>"]),
+        new("union", "compare/net10/Compare.Net10/MissionControl/CommandResult.cs", "src/MissionControl.Contracts/CommandResult.cs",
+            ["abstract record", ": CommandResult", "_ => throw"], ["[JsonUnion", "union CommandResult", "ProbeLost =>"]),
     ];
 
     private Scenario? _scenario = Scenarios[0];
