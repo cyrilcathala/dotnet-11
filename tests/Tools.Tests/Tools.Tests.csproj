@@ -9,6 +9,11 @@
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../../tools/Grid.cs" Link="Shared/Grid.cs" />
+    <Compile Include="../../tools/Conjunction.cs" Link="Shared/Conjunction.cs" />
+    <Compile Include="../../tools/RadarSweep.cs" Link="Shared/RadarSweep.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>
