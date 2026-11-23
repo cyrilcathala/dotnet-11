@@ -58,3 +58,32 @@
         </a>
     }
 </div>
+
+<section class="recap" aria-labelledby="recap-title">
+    <div class="recap-head">
+        <span class="label">Débriefing</span>
+        <h2 id="recap-title" class="recap-title">Les nouveautés .NET 11 de la mission</h2>
+    </div>
+    <ul class="recap-list">
+        @foreach (var (n, i) in Mission.Novelties.Select((n, i) => (n, i)))
+        {
+            var step = Mission.ByNumber(n.Step);
+            var first = i == 0 || Mission.Novelties[i - 1].Step != n.Step;
+            <li class="recap-row @(first ? "first" : null)">
+                @if (first)
+                {
+                    <a class="recap-step" href="@step.Route" title="Ouvrir la démo : @step.Title">
+                        <span class="mono">@step.Number.ToString("00")</span> @step.Phase <span aria-hidden="true">→</span>
+                    </a>
+                }
+                else
+                {
+                    <span class="recap-step" aria-hidden="true"></span>
+                }
+                <span class="recap-name">@n.Name</span>
+                <span class="recap-summary">@n.Summary</span>
+                <a class="recap-doc" href="@n.DocUrl" target="_blank" rel="noopener">Doc <span aria-hidden="true">↗</span></a>
+            </li>
+        }
+    </ul>
+</section>

@@ -796,6 +796,30 @@ code, pre, .mono { font-family: var(--mono); }
 .step-card-features { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin-top: auto; }
 .step-card-go { position: absolute; top: 22px; right: 22px; color: var(--dim); transition: color .2s, transform .2s; }
 
+/* ---------- Récapitulatif des nouveautés (accueil) ---------- */
+
+.recap { margin-top: 64px; }
+.recap-head { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.recap-title { font: 600 24px var(--display); }
+.recap-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.recap-row {
+    display: grid;
+    grid-template-columns: 150px minmax(200px, 300px) 1fr auto;
+    gap: 20px;
+    align-items: baseline;
+    padding: 11px 4px;
+}
+.recap-row.first { border-top: 1px solid var(--line); }
+.recap-list > .recap-row:first-child { border-top: 0; }
+.recap-row:hover { background: rgba(255, 255, 255, .02); }
+.recap-step { font-size: 12.5px; color: var(--muted); }
+.recap-step .mono { color: var(--dim); margin-right: 6px; }
+.recap-step:hover, .recap-step:hover .mono { color: var(--text); }
+.recap-name { font: 13px var(--mono); color: var(--cyan); }
+.recap-summary { font-size: 14px; color: var(--text); }
+.recap-doc { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.recap-doc:hover { color: var(--text); text-decoration: underline; }
+
 /* ---------- Pied de page de navigation ---------- */
 
 .step-nav { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); margin-top: 48px; }
@@ -832,6 +856,11 @@ code, pre, .mono { font-family: var(--mono); }
     .compare .splitter { display: none; }
     .compare-col + .splitter + .compare-col { border-top: 1px solid var(--line); }
     .steps { grid-template-columns: repeat(2, 1fr); }
+    .recap-row { grid-template-columns: 130px 1fr auto; row-gap: 4px; }
+    .recap-step { grid-row: span 2; }
+    .recap-name { grid-column: 2; }
+    .recap-doc { grid-column: 3; grid-row: 1; }
+    .recap-summary { grid-column: 2; }
     .tl-name { display: none; }
     .step-head { grid-template-columns: auto 1fr; }
     .features { grid-column: 1 / -1; justify-content: flex-start; }
