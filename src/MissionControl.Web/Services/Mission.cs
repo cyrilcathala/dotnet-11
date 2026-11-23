@@ -15,7 +15,7 @@ public static class Mission
             ["Process.RunAndCaptureTextAsync", "dotnet run -e", "Runtime async"]),
         new(3, "vol", "En vol", "Télémétrie", "ProbeSimulator → TelemetryReceiver",
             ["Zstandard", "CBOR incrémental", "ReadOnlySequenceStream", "EqualityComparer<T>.Create"]),
-        new(4, "asteroides", "Interlude", "Champ d'astéroïdes", "asteroid-scan.cs",
+        new(4, "debris", "Interlude", "Débris en orbite", "debris-scan.cs",
             ["#:include", "StringStream", "Indexeur d'extension", "break outer"]),
         new(5, "pilotage", "Pilotage", "Commander la sonde", "MissionControl",
             ["closed record", "union", "OpenTelemetry natif", "JSONL"]),

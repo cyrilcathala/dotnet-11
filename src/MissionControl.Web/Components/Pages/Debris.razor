@@ -1,0 +1,204 @@
+@page "/debris"
+@using System.Diagnostics
+@using System.Text
+@inject SourceFiles Sources
+
+<StepHeader Step="Step" />
+
+<div class="grid grid-wide">
+    <Panel Title="Image radar · tools/RadarSweep.cs" Framed>
+        <Actions>
+            @if (_hit is { } h)
+            {
+                <span class="status bad">Conjonction en (@h.Pos.Row, @h.Pos.Col) dans @h.Minutes min</span>
+            }
+            else if (_scanning)
+            {
+                <span class="status warn live">Balayage ligne par ligne</span>
+            }
+            <button class="btn btn-sm" disabled="@_scanning" @onclick="ScanAsync">Balayer le secteur</button>
+        </Actions>
+        <ChildContent>
+            <p class="note">Image radar centrée sur la sonde, cases de 1 km. L'outil prédit la trajectoire de chaque débris et déclenche une manœuvre au premier qui passe à 1 km ou moins.</p>
+            <div style="overflow-x: auto">
+                <div class="sector" style="grid-template-columns: 30px repeat(@_width, 34px)">
+                    <span></span>
+                    @for (var c = 0; c < _width; c++)
+                    {
+                        <span class="sector-axis">@Km(c - _probe.Col)</span>
+                    }
+                    @for (var r = 0; r < _map.Count; r++)
+                    {
+                        <span class="sector-axis">@Km(r - _probe.Row)</span>
+                        @for (var c = 0; c < _map[r].Length; c++)
+                        {
+                            <span class="cell @CellCss(r, c)" title="(@r, @c)"></span>
+                        }
+                    }
+                </div>
+            </div>
+            <div class="row mt" style="gap: 24px">
+                <span class="label">▲ sonde</span>
+                <span class="label">● débris</span>
+                <span class="label" style="color: var(--green)">▪ trajectoire sûre</span>
+                <span class="label" style="color: var(--red)">▪ trajectoire menaçante</span>
+                <span class="note">Parcours en ligne puis en colonne, sortie des deux boucles par <code>break outer;</code> à la première conjonction.</span>
+            </div>
+            @if (_evaluated.Count > 0)
+            {
+                <ul class="note" style="margin: 12px 0 0; padding-left: 18px">
+                    @foreach (var e in _evaluated)
+                    {
+                        <li>Débris en (@e.Pos.Row, @e.Pos.Col) : @(e.Minutes is { } m ? $"conjonction dans {m} min" : "trajectoire divergente")</li>
+                    }
+                </ul>
+            }
+        </ChildContent>
+    </Panel>
+
+    <Panel Title="Exécution réelle" Flush>
+        <Actions>
+            <button class="btn btn-sm btn-primary" disabled="@_running" @onclick="RunAsync">Lancer debris-scan.cs</button>
+        </Actions>
+        <ChildContent>
+<pre class="console" style="min-height: 260px"><span class="prompt">$</span> dotnet run --file debris-scan.cs
+@if (_running)
+{
+<span style="color: var(--muted)">compilation et exécution…</span>
+}
+else if (_output is not null)
+{
+<span class="@(_exitCode == 0 ? "" : "err")">@_output</span>
+<span class="@(_exitCode == 0 ? "prompt" : "err")">code de sortie @_exitCode · @_elapsed.TotalSeconds.ToString("0.0") s</span>
+}</pre>
+            <div class="panel-body">
+                <div class="note">Un seul fichier, pas de <code>.csproj</code>, qui en inclut trois autres par <code>#:include</code>. Dans le dashboard Aspire, c'est la ressource <code>debris-scan</code>.</div>
+            </div>
+        </ChildContent>
+    </Panel>
+</div>
+
+<div class="mt">
+    <CodeCompare Title="Un fichier, quatre sources · aucune variante .NET 10" Pairs="Code" />
+</div>
+
+<StepNav Step="Step" />
+
+@code {
+    private static readonly MissionStep Step = Mission.ByNumber(4);
+
+    private static readonly CodePair[] Code =
+    [
+        new("debris-scan.cs", null, "tools/debris-scan.cs", AfterMarks: ["#:include", "StringStream", "grid[pos]", "break outer", "outer:"]),
+        new("RadarSweep.cs", null, "tools/RadarSweep.cs", AfterMarks: ["#"]),
+        new("Grid.cs", null, "tools/Grid.cs", AfterMarks: ["extension(", "this[Position p]"]),
+        new("Conjunction.cs", null, "tools/Conjunction.cs", AfterMarks: ["Predict"]),
+    ];
+
+    private IReadOnlyList<string> _map = [];
+    private int _width;
+    private Position _probe;
+    private Position? _cursor;
+    private (Position Pos, int? Minutes)? _hit;
+    private readonly List<(Position Pos, int? Minutes)> _evaluated = [];
+    private readonly Dictionary<Position, bool> _paths = []; // vrai = menaçante
+    private int _scannedUpTo = -1;
+    private bool _scanning, _running;
+    private string? _output;
+    private int _exitCode;
+    private TimeSpan _elapsed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Même image radar que le script, chargée par le même code (liens de compilation).
+        using var sweep = new StringStream(RadarSweep.Current, Encoding.UTF8);
+        _map = await Grid.LoadAsync(sweep);
+        _width = _map.Max(l => l.Length);
+        for (var r = 0; r < _map.Count; r++)
+        {
+            var c = _map[r].IndexOf('P');
+            if (c >= 0) _probe = new Position(r, c);
+        }
+    }
+
+    private static string Km(int d) => d > 0 ? $"+{d}" : d < 0 ? $"−{-d}" : "0";
+
+    private string CellCss(int r, int c)
+    {
+        var pos = new Position(r, c);
+        var css = _map[r][c] switch { '#' => "debris", 'P' => "probe", _ => "" };
+        if (r * _width + c <= _scannedUpTo) css += " scanned";
+        if (_cursor == pos) css += " cursor";
+        if (_paths.TryGetValue(pos, out var threat)) css += threat ? " path-threat" : " path-safe";
+        if (_hit?.Pos == pos) css += " hit";
+        return css;
+    }
+
+    private bool InGrid(Position p) => p.Row >= 0 && p.Row < _map.Count && p.Col >= 0 && p.Col < _map[p.Row].Length;
+
+    private async Task ScanAsync()
+    {
+        _scanning = true;
+        _hit = null;
+        _scannedUpTo = -1;
+        _evaluated.Clear();
+        _paths.Clear();
+        // Même parcours que le script : break outer; à la première conjonction.
+        for (var row = 0; row < _map.Count && _hit is null; row++)
+        {
+            for (var col = 0; col < _map[row].Length; col++)
+            {
+                var pos = new Position(row, col);
+                _cursor = pos;
+                _scannedUpTo = row * _width + col;
+                StateHasChanged();
+                await Task.Delay(70);
+                if (_map[row][col] != '#') continue;
+
+                var minutes = Conjunction.Predict(pos, _probe);
+                _evaluated.Add((pos, minutes));
+                // Les trajectoires sortent de l'image : on ne dessine que les cases dans la grille.
+                foreach (var step in Conjunction.Path(pos).Where(InGrid))
+                    _paths[step] = minutes is not null;
+                StateHasChanged();
+                await Task.Delay(350);
+                if (minutes is not null)
+                {
+                    _hit = (pos, minutes);
+                    break;
+                }
+            }
+        }
+        _cursor = null;
+        _scanning = false;
+    }
+
+    private async Task RunAsync()
+    {
+        _running = true;
+        _output = null;
+        var watch = Stopwatch.StartNew();
+        try
+        {
+            var psi = new ProcessStartInfo("dotnet", ["run", "--file", Sources.FullPath("tools/debris-scan.cs")])
+            {
+                WorkingDirectory = Sources.FullPath("tools"),
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+            };
+            // Même API one-shot que LaunchControl (.NET 11).
+            var result = await Process.RunAndCaptureTextAsync(psi);
+            _exitCode = result.ExitStatus.ExitCode;
+            _output = (result.StandardOutput + result.StandardError).Trim();
+        }
+        catch (Exception e)
+        {
+            _exitCode = -1;
+            _output = e.Message;
+        }
+        _elapsed = watch.Elapsed;
+        _running = false;
+    }
+}

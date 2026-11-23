@@ -46,7 +46,7 @@
                             <td>@node.Name</td>
                             <td style="font-family: var(--display)">@node.Role</td>
                             <td>
-                                @if (node.Name == "asteroid-scan")
+                                @if (node.Name == "debris-scan")
                                 {
                                     <span class="status idle">Exécutable · voir le dashboard</span>
                                 }
@@ -78,7 +78,7 @@
         </Panel>
         <div class="caveat">
             <strong>Au terminal.</strong> Ces commandes se jouent en direct dans un terminal et le dashboard Aspire
-            (page Terminals, console d'<code class="inline-code">asteroid-scan</code>). La console ne fait que sonder l'état des services.
+            (page Terminals, console d'<code class="inline-code">debris-scan</code>). La console ne fait que sonder l'état des services.
         </div>
     </div>
 </div>
@@ -103,7 +103,7 @@
         new("probefactory", "Fabrication", 520, 40),
         new("probesimulator", "Simulateur de vol", 520, 150),
         new("telemetryreceiver", "Réception sol", 760, 150),
-        new("asteroid-scan", "Outil · fichier .cs", 760, 40),
+        new("debris-scan", "Outil · fichier .cs", 760, 40),
     ];
 
     private static readonly CodePair[] Code =
@@ -123,7 +123,7 @@
         _health.TryGetValue(name, out var h) ? (h.Ok ? "ok" : "bad") : "";
 
     private string NodeDot(string name) =>
-        name == "asteroid-scan" ? "#565c66" :
+        name == "debris-scan" ? "#565c66" :
         _health.TryGetValue(name, out var h) ? (h.Ok ? "#43d18a" : "#fc3d21") : "#565c66";
 
     protected override void OnAfterRender(bool firstRender)
