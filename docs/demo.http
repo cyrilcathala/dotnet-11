@@ -5,11 +5,11 @@
 ###   aspire describe --format Table      (ou colonne « URLs » du dashboard)
 ### puis les reporter ci-dessous. MCP a des ports fixes (launchSettings) : http 6277, https 5085.
 
-@probefactory = http://localhost:62744
-@launchcontrol = http://localhost:62745
-@probesimulator = http://localhost:62743
-@telemetryreceiver = http://localhost:62742
-@missioncontrol = http://localhost:62746
+@probefactory = http://localhost:49268
+@launchcontrol = http://localhost:49269
+@probesimulator = http://localhost:49266
+@telemetryreceiver = http://localhost:49270
+@missioncontrol = http://localhost:49267
 @mcp = http://localhost:6277
 @probe = Pioneer-12
 @commandId = 11111111-1111-1111-1111-111111111111
@@ -97,19 +97,19 @@ GET {{telemetryreceiver}}/telemetry/stats
 POST {{missioncontrol}}/commands
 Content-Type: application/json
 
-{ "type": "thrust", "id": "{{commandId}}", "probeName": "{{probe}}", "deltaV": 2.5 }
+{ "$type": "Thrust", "id": "{{commandId}}", "probeName": "{{probe}}", "deltaV": 2.5 }
 
 ### 5.2 Poussée invalide (200, Rejected : « Poussée invalide »)
 POST {{missioncontrol}}/commands
 Content-Type: application/json
 
-{ "type": "thrust", "id": "{{commandId}}", "probeName": "{{probe}}", "deltaV": -1 }
+{ "$type": "Thrust", "id": "{{commandId}}", "probeName": "{{probe}}", "deltaV": -1 }
 
 ### 5.3 Rotation
 POST {{missioncontrol}}/commands
 Content-Type: application/json
 
-{ "type": "rotate", "id": "{{commandId}}", "probeName": "{{probe}}", "degrees": 90 }
+{ "$type": "Rotate", "id": "{{commandId}}", "probeName": "{{probe}}", "degrees": 90 }
 
 ### 5.4 OpenAPI : le résultat de commande est décrit en anyOf
 GET {{missioncontrol}}/openapi/v1.json
@@ -122,19 +122,19 @@ GET {{missioncontrol}}/openapi/v1.json
 POST {{missioncontrol}}/commands
 Content-Type: application/json
 
-{ "type": "self-destruct", "id": "{{commandId}}", "probeName": "{{probe}}" }
+{ "$type": "SelfDestruct", "id": "{{commandId}}", "probeName": "{{probe}}" }
 
 ### 6.2 Commande suivante : toujours ProbeLost (contact perdu)
 POST {{missioncontrol}}/commands
 Content-Type: application/json
 
-{ "type": "thrust", "id": "{{commandId}}", "probeName": "{{probe}}", "deltaV": 1 }
+{ "$type": "Thrust", "id": "{{commandId}}", "probeName": "{{probe}}", "deltaV": 1 }
 
 ### 6.3 Sonde jamais lancée : Rejected (« Sonde inconnue ou au sol »)
 POST {{missioncontrol}}/commands
 Content-Type: application/json
 
-{ "type": "thrust", "id": "{{commandId}}", "probeName": "Inconnue", "deltaV": 1 }
+{ "$type": "Thrust", "id": "{{commandId}}", "probeName": "Inconnue", "deltaV": 1 }
 
 ### 6.4 L'historique montre la perte
 GET {{missioncontrol}}/commands/history

@@ -44,10 +44,10 @@ public sealed class DispatcherTests
         var simulator = FakeSimulatorHandler.Replying("rejected", "Batterie trop faible");
         var id = Guid.NewGuid();
 
-        var result = await Create(simulator).DispatchAsync(new CapturePhoto(id, "Pioneer-11"), TestContext.Current.CancellationToken);
+        var result = await Create(simulator).DispatchAsync(new CapturePhoto(id, "Pioneer-11", 2), TestContext.Current.CancellationToken);
 
         Assert.Equal(new Rejected(id, "Batterie trop faible"), Assert.IsType<Rejected>(result.Value));
-        Assert.Equal(new SimulatorCommandRequest(id, "capture-photo", null), Assert.Single(simulator.Requests).Body);
+        Assert.Equal(new SimulatorCommandRequest(id, "capture-photo", 2), Assert.Single(simulator.Requests).Body);
     }
 
     [Fact]

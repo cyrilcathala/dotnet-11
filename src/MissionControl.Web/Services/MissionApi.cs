@@ -52,6 +52,7 @@ public sealed class MissionApi(IHttpClientFactory clients)
     public static readonly JsonSerializerOptions Pretty = new()
     {
         WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
@@ -60,7 +61,8 @@ public sealed class MissionApi(IHttpClientFactory clients)
     public Task<Exchange> GetAsync(string service, string path, CancellationToken ct = default) =>
         SendAsync(service, HttpMethod.Get, path, null, [], ct);
 
-    public Task<Exchange> PostAsync(string service, string path, object body,
+    // Générique : le corps est sérialisé selon son type déclaré (un ProbeCommand garde son discriminant).
+    public Task<Exchange> PostAsync<T>(string service, string path, T body,
         IEnumerable<KeyValuePair<string, string>>? headers = null, CancellationToken ct = default) =>
         SendAsync(service, HttpMethod.Post, path, JsonSerializer.Serialize(body, Pretty), headers ?? [], ct);
 

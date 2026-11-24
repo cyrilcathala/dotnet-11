@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using MissionControl.Contracts;
 
 namespace MissionControl.Api;
 
@@ -15,7 +14,7 @@ public abstract record ProbeCommand(Guid Id, string ProbeName)
     {
         Thrust t => new SimulatorCommandRequest(t.Id, "thrust", t.DeltaV),
         Rotate r => new SimulatorCommandRequest(r.Id, "rotate", r.Degrees),
-        CapturePhoto c => new SimulatorCommandRequest(c.Id, "capture-photo", null),
+        CapturePhoto c => new SimulatorCommandRequest(c.Id, "capture-photo", c.Zoom),
         SelfDestruct s => new SimulatorCommandRequest(s.Id, "self-destruct", null),
         _ => throw new ArgumentOutOfRangeException(nameof(cmd), cmd, "Commande inconnue"),
     };
@@ -23,5 +22,5 @@ public abstract record ProbeCommand(Guid Id, string ProbeName)
 
 public sealed record Thrust(Guid Id, string ProbeName, double DeltaV) : ProbeCommand(Id, ProbeName);
 public sealed record Rotate(Guid Id, string ProbeName, double Degrees) : ProbeCommand(Id, ProbeName);
-public sealed record CapturePhoto(Guid Id, string ProbeName) : ProbeCommand(Id, ProbeName);
+public sealed record CapturePhoto(Guid Id, string ProbeName, double Zoom) : ProbeCommand(Id, ProbeName);
 public sealed record SelfDestruct(Guid Id, string ProbeName) : ProbeCommand(Id, ProbeName);

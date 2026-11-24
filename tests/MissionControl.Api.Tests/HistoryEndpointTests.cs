@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using MissionControl.Contracts;
 
 namespace MissionControl.Api.Tests;
 
@@ -17,7 +18,7 @@ public sealed class HistoryEndpointTests
         ProbeCommand[] commands =
         [
             new Thrust(Guid.NewGuid(), "Pioneer-11", 2),
-            new CapturePhoto(Guid.NewGuid(), "Pioneer-11"),
+            new CapturePhoto(Guid.NewGuid(), "Pioneer-11", 2),
             new SelfDestruct(selfDestructId, "Pioneer-11"),
         ];
         foreach (var command in commands)

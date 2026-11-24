@@ -10,7 +10,15 @@ namespace MissionControl.Mcp.Tools;
 [McpServerToolType]
 public class MissionTools(IHttpClientFactory httpClientFactory)
 {
-    private static readonly string[] CommandTypes = ["thrust", "rotate", "capture-photo", "self-destruct"];
+    // Le LLM parle en « thrust »… ; l'API attend le nom du cas de ProbeCommand comme discriminant,
+    // et la propriété qui porte la valeur (aucune pour self-destruct).
+    private static readonly Dictionary<string, (string Record, string? Field)> CommandTypes = new()
+    {
+        ["thrust"] = ("Thrust", "deltaV"),
+        ["rotate"] = ("Rotate", "degrees"),
+        ["capture-photo"] = ("CapturePhoto", "zoom"),
+        ["self-destruct"] = ("SelfDestruct", null),
+    };
 
     [McpServerTool]
     [Description("Lance une sonde déjà construite, après vérification météo.")]
@@ -41,27 +49,26 @@ public class MissionTools(IHttpClientFactory httpClientFactory)
     public Task<string> SendCommand(
         [Description("Nom de la sonde")] string probeName,
         [Description("Type de commande : thrust, rotate, capture-photo ou self-destruct")] string type,
-        [Description("Valeur : deltaV pour thrust, degrés pour rotate, ignorée sinon")] double? value = null,
+        [Description("Valeur : deltaV pour thrust, degrés pour rotate, zoom pour capture-photo, ignorée pour self-destruct")] double? value = null,
         CancellationToken ct = default)
     {
-        if (!CommandTypes.Contains(type))
-            return Task.FromResult($"Type de commande inconnu : {type}. Types valides : {string.Join(", ", CommandTypes)}.");
-        if (type is "thrust" or "rotate" && value is null)
+        if (!CommandTypes.TryGetValue(type, out var command))
+            return Task.FromResult($"Type de commande inconnu : {type}. Types valides : {string.Join(", ", CommandTypes.Keys)}.");
+        if (command.Field is not null && value is null)
             return Task.FromResult($"Commande {type} impossible : valeur requise.");
 
         return Guard("contrôle de mission", async () =>
         {
-            var command = new Dictionary<string, object?>
+            var request = new Dictionary<string, object?>
             {
-                ["type"] = type,
+                ["$type"] = command.Record, // en premier : le discriminant ouvre l'objet
                 ["id"] = Guid.NewGuid(),
                 ["probeName"] = probeName
             };
-            if (type == "thrust") command["deltaV"] = value;
-            if (type == "rotate") command["degrees"] = value;
+            if (command.Field is { } field) request[field] = value;
 
             using var response = await httpClientFactory.CreateClient("missioncontrol")
-                .PostAsJsonAsync("/commands", command, ct);
+                .PostAsJsonAsync("/commands", request, ct);
             if (!response.IsSuccessStatusCode)
                 return $"Réponse inattendue du contrôle de mission : {(int)response.StatusCode}.";
             var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);

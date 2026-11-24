@@ -24,26 +24,26 @@
             <div class="cmd-grid">
                 @foreach (var c in CommandTypes)
                 {
-                    <button class="cmd @(_type == c.Type ? "on" : "")" @onclick="() => Select(c.Type)">
+                    <button class="cmd @(_command == c ? "on" : "")" @onclick="() => Select(c)">
                         <span class="cmd-name">@c.Record</span>
-                        <span class="cmd-type">@c.Type</span>
+                        <span class="cmd-type">@(c.Field ?? "—")</span>
                     </button>
                 }
             </div>
-            @if (_type is "thrust" or "rotate")
+            @if (_command.Field is { } field)
             {
                 <div class="field mt">
-                    <label class="label" for="value">@(_type == "thrust" ? "DeltaV (km/s)" : "Degrees")</label>
+                    <label class="label" for="value">@field</label>
                     <input id="value" class="input" type="number" step="0.5" @bind="_value" @bind:after="() => _scenario = null" />
                 </div>
             }
-            @if (_type == "self-destruct")
+            else
             {
                 <div class="caveat mt">
                     <strong>Rendez-vous à l'étape suivante.</strong>
                 </div>
             }
-            <button class="btn btn-primary btn-block mt" disabled="@(_busy || _type == "self-destruct")" @onclick="SendAsync">
+            <button class="btn btn-primary btn-block mt" disabled="@(_busy || _command.Field is null)" @onclick="SendAsync">
                 Transmettre à @State.Probe
             </button>
         </Panel>
@@ -86,36 +86,43 @@
 @code {
     private static readonly MissionStep Step = Mission.ByNumber(5);
 
-    private record Scenario(string Id, string Title, string Hint, string Type, double? Value, string Expect);
-    private record CommandType(string Type, string Record);
+    // Chaque commande envoyable porte une valeur : deltaV, degrees ou zoom. SelfDestruct n'en a pas.
+    // Create construit le record lui-même : sérialisé en ProbeCommand, il porte son "$type".
+    private record CommandType(string Record, string? Field, Func<string, double, ProbeCommand> Create);
+    private record Scenario(string Id, string Title, CommandType Command, double Value, string Expect)
+    {
+        public string Hint => FormattableString.Invariant($"{Command.Record} · {Command.Field} = {Value}");
+    }
+
+    // Déclarées avant les scénarios, qui s'en servent (initialisation statique dans l'ordre du fichier).
+    private static readonly CommandType ThrustCommand = new(nameof(Thrust), "deltaV", (probe, v) => new Thrust(Guid.NewGuid(), probe, v));
+    private static readonly CommandType RotateCommand = new(nameof(Rotate), "degrees", (probe, v) => new Rotate(Guid.NewGuid(), probe, v));
+    private static readonly CommandType PhotoCommand = new(nameof(CapturePhoto), "zoom", (probe, v) => new CapturePhoto(Guid.NewGuid(), probe, v));
+    private static readonly CommandType[] CommandTypes =
+    [
+        ThrustCommand, RotateCommand, PhotoCommand,
+        new(nameof(SelfDestruct), null, (probe, _) => new SelfDestruct(Guid.NewGuid(), probe)),
+    ];
 
     private static readonly Scenario[] Scenarios =
     [
-        new("5.1", "Poussée", "thrust · deltaV = 2.5", "thrust", 2.5, "Acknowledged"),
-        new("5.2", "Poussée invalide", "thrust · deltaV = −1", "thrust", -1, "Rejected"),
-        new("5.3", "Rotation", "rotate · degrees = 90", "rotate", 90, "Acknowledged"),
-        new("—", "Photo", "capture-photo", "capture-photo", null, "Acknowledged"),
-    ];
-
-    private static readonly CommandType[] CommandTypes =
-    [
-        new("thrust", "Thrust"),
-        new("rotate", "Rotate"),
-        new("capture-photo", "CapturePhoto"),
-        new("self-destruct", "SelfDestruct"),
+        new("5.1", "Poussée", ThrustCommand, 2.5, "Acknowledged"),
+        new("5.2", "Poussée invalide", ThrustCommand, -1, "Rejected"),
+        new("5.3", "Rotation", RotateCommand, 90, "Acknowledged"),
+        new("—", "Photo", PhotoCommand, 2, "Acknowledged"),
     ];
 
     // Une vue par nouveauté : le type et son switch sont dans le même fichier, de chaque côté.
     private static readonly CodePair[] Code =
     [
-        new("closed record", "compare/net10/Compare.Net10/MissionControl/ProbeCommand.cs", "src/MissionControl.Api/ProbeCommand.cs",
-            ["abstract record", "_ => throw"], ["closed record", "SelfDestruct s =>"]),
+        new("closed record", "compare/net10/Compare.Net10/MissionControl/ProbeCommand.cs", "src/MissionControl.Contracts/ProbeCommand.cs",
+            ["abstract record", "_ => throw"], ["InferClosedTypePolymorphism", "closed record", "SelfDestruct s =>"]),
         new("union", "compare/net10/Compare.Net10/MissionControl/CommandResult.cs", "src/MissionControl.Contracts/CommandResult.cs",
             ["abstract record", ": CommandResult", "_ => throw"], ["[JsonUnion", "union CommandResult", "ProbeLost =>"]),
     ];
 
     private Scenario? _scenario = Scenarios[0];
-    private string _type = Scenarios[0].Type;
+    private CommandType _command = Scenarios[0].Command;
     private double? _value = Scenarios[0].Value;
     private bool _busy;
     private Exchange? _exchange;
@@ -125,20 +132,20 @@
     private void Prefill(Scenario s)
     {
         _scenario = s;
-        _type = s.Type;
+        _command = s.Command;
         _value = s.Value;
     }
 
-    private void Select(string type)
+    private void Select(CommandType command)
     {
         _scenario = null;
-        _type = type;
+        _command = command;
     }
 
     private async Task SendAsync()
     {
         _busy = true;
-        _exchange = await Api.PostAsync(MissionApi.MissionControl, "/commands", Commands.Build(_type, State.Probe, _value));
+        _exchange = await Api.PostAsync(MissionApi.MissionControl, "/commands", _command.Create(State.Probe, _value ?? 0));
         _busy = false;
     }
 

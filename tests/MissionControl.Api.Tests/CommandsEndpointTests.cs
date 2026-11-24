@@ -13,7 +13,7 @@ public sealed class CommandsEndpointTests
         var simulator = FakeSimulatorHandler.Replying("ack");
         var client = TestApp.Create(simulator);
         var id = Guid.NewGuid();
-        var json = $$"""{"type":"rotate","id":"{{id}}","probeName":"Pioneer-11","degrees":90}""";
+        var json = $$"""{"$type":"Rotate","id":"{{id}}","probeName":"Pioneer-11","degrees":90}""";
 
         var response = await client.PostAsync("/commands", new StringContent(json, Encoding.UTF8, "application/json"),
             TestContext.Current.CancellationToken);

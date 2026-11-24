@@ -40,7 +40,7 @@ public class MissionToolsTests
         var (tools, handler) = Make(HttpStatusCode.OK, """{"commandId":"c","at":"2026-01-01T00:00:00Z"}""");
         await tools.SendCommand("Voyager", "rotate", 90, ct: TestContext.Current.CancellationToken);
         var sent = JsonDocument.Parse(handler.SentBody!).RootElement;
-        Assert.Equal("rotate", sent.GetProperty("type").GetString());
+        Assert.Equal("Rotate", sent.GetProperty("$type").GetString());
         Assert.Equal(90, sent.GetProperty("degrees").GetDouble());
         Assert.Equal("Voyager", sent.GetProperty("probeName").GetString());
         Assert.True(Guid.TryParse(sent.GetProperty("id").GetString(), out _));
@@ -67,7 +67,7 @@ public class MissionToolsTests
     public async Task SendCommand_acknowledged()
     {
         var (tools, _) = Make(HttpStatusCode.OK, """{"commandId":"c","at":"2026-01-01T00:00:00Z"}""");
-        Assert.Contains("Commande acquittée", await tools.SendCommand("V", "capture-photo", null, ct: TestContext.Current.CancellationToken));
+        Assert.Contains("Commande acquittée", await tools.SendCommand("V", "capture-photo", 2, ct: TestContext.Current.CancellationToken));
     }
 
     [Fact]

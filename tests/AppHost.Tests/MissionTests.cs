@@ -56,7 +56,8 @@ public class MissionTests
         await PollUntilAsync(async () => await DuplicatesAsync(receiver, ct) > 0, ct);
 
         using var command = await mission.PostAsJsonAsync("/commands",
-            new { type = "self-destruct", id = Guid.NewGuid(), probeName = "Pioneer-11" }, ct);
+            // "$type" n'est pas un nom de membre C# : le corps passe par un dictionnaire.
+            new Dictionary<string, object> { ["$type"] = "SelfDestruct", ["id"] = Guid.NewGuid(), ["probeName"] = "Pioneer-11" }, ct);
         Assert.Equal(HttpStatusCode.OK, command.StatusCode);
         Assert.Contains("probeName", await command.Content.ReadAsStringAsync(ct));
 

@@ -12,6 +12,7 @@ public sealed record LaunchReport(string ProbeName, string Status, string Weathe
 public sealed record StartFlightRequest(string ProbeName);
 
 /// <param name="Type">"thrust", "rotate", "capture-photo" ou "self-destruct".</param>
+/// <param name="Value">deltaV, degrés ou zoom ; null pour self-destruct.</param>
 public sealed record SimulatorCommandRequest(Guid CommandId, string Type, double? Value);
 
 /// <param name="Outcome">"ack", "rejected" ou "lost".</param>

@@ -11,7 +11,7 @@
 
     <div class="stack">
         <Panel Title="Autodestruction" Framed>
-            <div class="note">Commande <code>self-destruct</code> sur <strong>@State.Probe</strong>. Le simulateur arrête le vol : le flux de télémétrie se tait.</div>
+            <div class="note">Commande <code>SelfDestruct</code> sur <strong>@State.Probe</strong>. Le simulateur arrête le vol : le flux de télémétrie se tait.</div>
             @if (!_armed)
             {
                 <button class="btn btn-danger btn-block mt" disabled="@_busy" @onclick="Arm">Armer · 6.1</button>
@@ -20,15 +20,15 @@
             {
                 <div class="grid grid-2 mt">
                     <button class="btn" @onclick="() => _armed = false">Annuler</button>
-                    <button class="btn btn-danger armed" disabled="@_busy" @onclick='() => SendAsync("self-destruct", null, "6.1")'>Confirmer</button>
+                    <button class="btn btn-danger armed" disabled="@_busy" @onclick='() => SendAsync(new SelfDestruct(Guid.NewGuid(), State.Probe), "6.1")'>Confirmer</button>
                 </div>
             }
         </Panel>
 
         <Panel Title="Après l'incident" Flush>
-            <button class="scenario" disabled="@_busy" @onclick='() => SendAsync("thrust", 1, "6.2")'>
+            <button class="scenario" disabled="@_busy" @onclick='() => SendAsync(new Thrust(Guid.NewGuid(), State.Probe, 1), "6.2")'>
                 <span class="scenario-id">6.2</span>
-                <span><span class="scenario-title">Relancer une poussée</span><div class="scenario-hint">thrust · deltaV = 1 · @State.Probe</div></span>
+                <span><span class="scenario-title">Relancer une poussée</span><div class="scenario-hint">Thrust · deltaV = 1 · @State.Probe</div></span>
                 <span class="scenario-expect">ProbeLost</span>
             </button>
         </Panel>
@@ -114,13 +114,13 @@
         _disarm = new Timer(_ => InvokeAsync(() => { _armed = false; StateHasChanged(); }), null, 8000, Timeout.Infinite);
     }
 
-    private async Task SendAsync(string type, double? value, string id, string? probe = null)
+    private async Task SendAsync(ProbeCommand command, string id)
     {
         _busy = true;
         _armed = false;
-        _exchange = await Api.PostAsync(MissionApi.MissionControl, "/commands", Commands.Build(type, probe ?? State.Probe, value));
+        _exchange = await Api.PostAsync(MissionApi.MissionControl, "/commands", command);
         _busy = false;
-        if (_exchange.TraceId is { } traceId) _trace = new($"{id} · {type}", traceId);
+        if (_exchange.TraceId is { } traceId) _trace = new($"{id} · {command.GetType().Name}", traceId);
         if (_history is not null) await _history.LoadAsync();
     }
 

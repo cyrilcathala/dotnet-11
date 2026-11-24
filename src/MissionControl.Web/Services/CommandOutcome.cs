@@ -26,14 +26,3 @@ public sealed record CommandOutcome(string Case, string Css, string Detail)
         ProbeLost p => new("ProbeLost", "bad", $"contact perdu avec {p.ProbeName}"),
     };
 }
-
-public static class Commands
-{
-    public static object Build(string type, string probe, double? value)
-    {
-        var command = new Dictionary<string, object?> { ["type"] = type, ["id"] = Guid.NewGuid(), ["probeName"] = probe };
-        if (type == "thrust") command["deltaV"] = value;
-        if (type == "rotate") command["degrees"] = value;
-        return command;
-    }
-}
