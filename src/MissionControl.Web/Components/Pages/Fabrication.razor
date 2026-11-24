@@ -6,20 +6,6 @@
 
 <div class="grid grid-side">
     <div class="stack">
-        <Panel Title="Scénarios du runbook" Flush>
-            @foreach (var s in Scenarios)
-            {
-                <button class="scenario" disabled="@_busy" @onclick="() => RunAsync(s)">
-                    <span class="scenario-id">@s.Id</span>
-                    <span>
-                        <span class="scenario-title">@s.Title</span>
-                        <div class="scenario-hint">@s.Hint(State.Probe)</div>
-                    </span>
-                    <span class="scenario-expect">@s.Expect</span>
-                </button>
-            }
-        </Panel>
-
         <Panel Title="Bon de fabrication">
             <div class="field">
                 <label class="label" for="name">Nom de la sonde</label>
@@ -41,6 +27,20 @@
                 </div>
             </div>
             <button class="btn btn-primary btn-block mt" disabled="@_busy" @onclick="SubmitAsync">Envoyer à ProbeFactory</button>
+        </Panel>
+
+        <Panel Title="Scénarios du runbook" Flush>
+            @foreach (var s in Scenarios)
+            {
+                <button class="scenario" disabled="@_busy" @onclick="() => Fill(s)">
+                    <span class="scenario-id">@s.Id</span>
+                    <span>
+                        <span class="scenario-title">@s.Title</span>
+                        <div class="scenario-hint">@s.Hint(State.Probe)</div>
+                    </span>
+                    <span class="scenario-expect">@s.Expect</span>
+                </button>
+            }
         </Panel>
     </div>
 
@@ -116,7 +116,7 @@
         new("1.2", "Nom trop court, en français", _ => "name = ab · Accept-Language: fr", "400", _ => "ab", "Rover", "fr"),
         new("1.3", "La même, en anglais", _ => "name = ab · Accept-Language: en", "400", _ => "ab", "Rover", "en"),
         new("1.4", "Nom déjà pris", p => $"name = {p} · validation asynchrone", "400", p => p, "Orbiter", "fr"),
-        new("1.5", "Nom réservé", _ => "name = voyager · with(StringComparer.OrdinalIgnoreCase)", "400", _ => "voyager", "Orbiter", "fr"),
+        new("1.5", "Nom réservé", _ => "name = voyager", "400", _ => "voyager", "Orbiter", "fr"),
     ];
 
     private static readonly CodePair[] Code =
@@ -138,12 +138,11 @@
 
     protected override void OnInitialized() => _name = State.Probe;
 
-    private Task RunAsync(Scenario s)
+    private void Fill(Scenario s)
     {
         _name = s.Name(State.Probe);
         _kind = s.Kind;
         if (s.Lang is not null) _lang = s.Lang;
-        return SubmitAsync();
     }
 
     private async Task SubmitAsync()
