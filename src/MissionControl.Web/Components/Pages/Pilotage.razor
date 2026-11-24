@@ -6,6 +6,25 @@
 
 <div class="grid grid-side">
     <div class="stack">
+        <Panel Title="Console de commande">
+            <div class="cmd-grid">
+                @foreach (var c in CommandTypes)
+                {
+                    <button class="cmd @(_command == c ? "on" : "")" @onclick="() => Select(c)">
+                        <span class="cmd-name">@c.Record</span>
+                        <span class="cmd-type">@c.Field</span>
+                    </button>
+                }
+            </div>
+            <div class="field mt">
+                <label class="label" for="value">@_command.Field</label>
+                <input id="value" class="input" type="number" step="0.5" @bind="_value" @bind:after="() => _scenario = null" />
+            </div>
+            <button class="btn btn-primary btn-block mt" disabled="@_busy" @onclick="SendAsync">
+                Transmettre à @State.Probe
+            </button>
+        </Panel>
+
         <Panel Title="Scénarios du runbook" Flush>
             @foreach (var s in Scenarios)
             {
@@ -18,34 +37,6 @@
                     <span class="scenario-expect">@s.Expect</span>
                 </button>
             }
-        </Panel>
-
-        <Panel Title="Console de commande">
-            <div class="cmd-grid">
-                @foreach (var c in CommandTypes)
-                {
-                    <button class="cmd @(_command == c ? "on" : "")" @onclick="() => Select(c)">
-                        <span class="cmd-name">@c.Record</span>
-                        <span class="cmd-type">@(c.Field ?? "—")</span>
-                    </button>
-                }
-            </div>
-            @if (_command.Field is { } field)
-            {
-                <div class="field mt">
-                    <label class="label" for="value">@field</label>
-                    <input id="value" class="input" type="number" step="0.5" @bind="_value" @bind:after="() => _scenario = null" />
-                </div>
-            }
-            else
-            {
-                <div class="caveat mt">
-                    <strong>Rendez-vous à l'étape suivante.</strong>
-                </div>
-            }
-            <button class="btn btn-primary btn-block mt" disabled="@(_busy || _command.Field is null)" @onclick="SendAsync">
-                Transmettre à @State.Probe
-            </button>
         </Panel>
     </div>
 
@@ -86,9 +77,9 @@
 @code {
     private static readonly MissionStep Step = Mission.ByNumber(5);
 
-    // Chaque commande envoyable porte une valeur : deltaV, degrees ou zoom. SelfDestruct n'en a pas.
+    // Chaque commande envoyable porte une valeur : deltaV, degrees ou zoom.
     // Create construit le record lui-même : sérialisé en ProbeCommand, il porte son "$type".
-    private record CommandType(string Record, string? Field, Func<string, double, ProbeCommand> Create);
+    private record CommandType(string Record, string Field, Func<string, double, ProbeCommand> Create);
     private record Scenario(string Id, string Title, CommandType Command, double Value, string Expect)
     {
         public string Hint => FormattableString.Invariant($"{Command.Record} · {Command.Field} = {Value}");
@@ -101,7 +92,6 @@
     private static readonly CommandType[] CommandTypes =
     [
         ThrustCommand, RotateCommand, PhotoCommand,
-        new(nameof(SelfDestruct), null, (probe, _) => new SelfDestruct(Guid.NewGuid(), probe)),
     ];
 
     private static readonly Scenario[] Scenarios =

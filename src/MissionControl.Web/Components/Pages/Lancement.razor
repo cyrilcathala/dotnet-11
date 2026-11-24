@@ -156,9 +156,7 @@ else if (_phase == Phase.Polling)
         new("Runtime async · le code mesuré", null, "src/LaunchControl/CountdownSequence.cs",
             AfterMarks: ["async Task<string>", "new StackTrace"]),
         new("Runtime async · deux compilations", "src/LaunchControl.ClassicAsync/LaunchControl.ClassicAsync.csproj", "src/LaunchControl/LaunchControl.csproj",
-            ["Compile Include"], ["runtime-async", "classicasync"], BeforeLabel: "Sans", AfterLabel: "Avec"),
-        new("Runtime async · l'endpoint", null, "src/LaunchControl/Program.cs",
-            AfterMarks: ["extern alias", "classicasync::", "runtimeAsync"]),
+            ["Compile Include"], ["runtime-async"], BeforeLabel: "Sans", AfterLabel: "Avec"),
     ];
 
     private Phase _phase;
