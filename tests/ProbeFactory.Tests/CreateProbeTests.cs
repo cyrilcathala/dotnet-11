@@ -71,6 +71,17 @@ public sealed class CreateProbeTests : IClassFixture<WebApplicationFactory<Progr
         await AssertErrorAsync(resp, "Name", "Le champ Name est obligatoire.");
     }
 
+    [Theory]
+    [InlineData("fr", "Une ou plusieurs erreurs de validation se sont produites.")]
+    [InlineData("en", "One or more validation errors occurred.")]
+    public async Task Validation_problem_title_follows_accept_language(string language, string title)
+    {
+        var resp = await PostAsync(_factory.CreateClient(), "ab", language);
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(title, doc.RootElement.GetProperty("title").GetString());
+    }
+
     [Fact]
     public async Task Unsupported_culture_falls_back_to_english()
     {

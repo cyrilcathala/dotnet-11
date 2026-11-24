@@ -7,4 +7,5 @@
   <data name="RequiredAttribute_Error" xml:space="preserve"><value>The {0} field is required.</value></data>
   <data name="StringLengthAttribute_Error" xml:space="preserve"><value>The {0} field must be between {2} and {1} characters.</value></data>
   <data name="UniqueProbeNameAttribute_Error" xml:space="preserve"><value>This probe name is already taken.</value></data>
+  <data name="ValidationProblem_Title" xml:space="preserve"><value>One or more validation errors occurred.</value></data>
 </root>

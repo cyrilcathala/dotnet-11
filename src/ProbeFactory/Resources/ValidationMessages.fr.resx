@@ -7,4 +7,5 @@
   <data name="RequiredAttribute_Error" xml:space="preserve"><value>Le champ {0} est obligatoire.</value></data>
   <data name="StringLengthAttribute_Error" xml:space="preserve"><value>Le champ {0} doit contenir entre {2} et {1} caractères.</value></data>
   <data name="UniqueProbeNameAttribute_Error" xml:space="preserve"><value>Ce nom de sonde est déjà pris.</value></data>
+  <data name="ValidationProblem_Title" xml:space="preserve"><value>Une ou plusieurs erreurs de validation se sont produites.</value></data>
 </root>
