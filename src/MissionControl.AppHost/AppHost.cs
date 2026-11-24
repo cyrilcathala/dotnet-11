@@ -1,25 +1,32 @@
+// Ports figés pour que les URLs restent stables d'un lancement à l'autre
+// (console : 5194 et mcp : 6277 viennent de leur launchSettings.json).
 var builder = DistributedApplication.CreateBuilder(args);
 
 var toolsDirectory = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "../../tools"));
 
 var probefactory = builder.AddDotnetProject("probefactory", "../ProbeFactory/ProbeFactory.csproj")
-    .WithHttpEndpoint();
+    .WithHttpEndpoint(port: 5101)
+    .WithScalar();
 
 var telemetryreceiver = builder.AddDotnetProject("telemetryreceiver", "../TelemetryReceiver/TelemetryReceiver.csproj")
-    .WithHttpEndpoint();
+    .WithHttpEndpoint(port: 5102)
+    .WithScalar();
 
 var probesimulator = builder.AddDotnetProject("probesimulator", "../ProbeSimulator/ProbeSimulator.csproj")
-    .WithHttpEndpoint()
+    .WithHttpEndpoint(port: 5103)
+    .WithScalar()
     .WithReference(telemetryreceiver);
 
 var launchcontrol = builder.AddDotnetProject("launchcontrol", "../LaunchControl/LaunchControl.csproj")
-    .WithHttpEndpoint()
+    .WithHttpEndpoint(port: 5104)
+    .WithScalar()
     .WithReference(probefactory)
     .WithReference(probesimulator)
     .WithEnvironment("Preflight__ToolPath", Path.Combine(toolsDirectory, "preflight.cs"));
 
 var missioncontrol = builder.AddDotnetProject("missioncontrol", "../MissionControl.Api/MissionControl.Api.csproj")
-    .WithHttpEndpoint()
+    .WithHttpEndpoint(port: 5105)
+    .WithScalar()
     .WithReference(probesimulator);
 
 var mcp = builder.AddDotnetProject("mcp", "../MissionControl.Mcp/MissionControl.Mcp.csproj")
@@ -44,3 +51,11 @@ builder.AddDotnetProject("console", "../MissionControl.Web/MissionControl.Web.cs
     .WithEnvironment("Console__RepoRoot", Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "../..")));
 
 builder.Build().Run();
+
+static class AppHostExtensions
+{
+    // Ajoute un lien direct vers la référence Scalar de l'API sur le dashboard Aspire.
+    public static IResourceBuilder<T> WithScalar<T>(this IResourceBuilder<T> builder)
+        where T : IResourceWithEndpoints =>
+        builder.WithUrlForEndpoint("http", _ => new() { Url = "/scalar", DisplayText = "Scalar" });
+}
